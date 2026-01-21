@@ -26,10 +26,11 @@ ui_ensure_ui_deps
 
 usage() {
   cat <<'EOF'
-homelab_2026.2
+fouchger_homelab
 
 Usage:
   bin/homelab                 Launch interactive menu
+  bin/homelab dev-auth        Git and Github log in and authentication
   bin/homelab validate        Validate configuration
   bin/homelab bootstrap       Install prerequisites on this node
   bin/homelab plan            Terraform plan
@@ -55,6 +56,7 @@ fi
 if [[ -n "${1:-}" ]]; then
   cmd="$1"; shift || true
   case "${cmd}" in
+    dev-auth) scripts/core/dev-auth.sh ;;
     validate) scripts/core/validate.sh ;;
     bootstrap) scripts/core/bootstrap.sh ;;
     plan) scripts/proxmox/terraform.sh plan ;;
@@ -104,28 +106,30 @@ menu_main() {
   local choice
   while true; do
     ui_menu "homelab_2026.2" "Choose what you want to do" choice \
-      1 "🧰 Bootstrap this node (prereqs)" \
-      2 "🔐 Configure Proxmox API token" \
-      3 "📦 Download Proxmox templates" \
-      4 "🏗️  Provision or update VMs/LXCs (Terraform apply)" \
-      5 "🧯 Destroy VMs/LXCs (Terraform destroy)" \
-      6 "🛠️  Configure services (Ansible)" \
-      7 "📡 MikroTik integration" \
-      8 "⚙️  Settings and questionnaires" \
-      9 "📄 View logs folder" \
-      10 "🚪 Exit"
+      1 "🧰 Git and Github log in and authentication" \
+      2 "🧰 Bootstrap this node (prereqs)" \
+      3 "🔐 Configure Proxmox API token" \
+      4 "📦 Download Proxmox templates" \
+      5 "🏗️  Provision or update VMs/LXCs (Terraform apply)" \
+      6 "🧯 Destroy VMs/LXCs (Terraform destroy)" \
+      7 "🛠️  Configure services (Ansible)" \
+      8 "📡 MikroTik integration" \
+      9 "⚙️  Settings and questionnaires" \
+      10 "📄 View logs folder" \
+      99 "🚪 Exit"
 
     case "${choice:-}" in
-      1) scripts/core/bootstrap.sh ;;
-      2) scripts/proxmox/bootstrap-api-token.sh ;;
-      3) scripts/proxmox/templates.sh ;;
-      4) scripts/proxmox/terraform.sh apply ;;
-      5) scripts/proxmox/terraform.sh destroy ;;
-      6) scripts/core/ansible.sh ;;
-      7) mikrotik_menu ;;
-      8) scripts/core/questionnaires.sh ;;
-      9) ok "Logs live here: ${LOG_DIR_DEFAULT}" ;;
-      10|"") break ;;
+      1) scripts/core/dev-auth.sh ;;
+      2) scripts/core/bootstrap.sh ;;
+      3) scripts/proxmox/bootstrap-api-token.sh ;;
+      4) scripts/proxmox/templates.sh ;;
+      5) scripts/proxmox/terraform.sh apply ;;
+      6) scripts/proxmox/terraform.sh destroy ;;
+      7) scripts/core/ansible.sh ;;
+      8) mikrotik_menu ;;
+      9) scripts/core/questionnaires.sh ;;
+      10) ok "Logs live here: ${LOG_DIR_DEFAULT}" ;;
+      99|"") break ;;
     esac
   done
 }

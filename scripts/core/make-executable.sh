@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Filename: scripts/make-executable.sh
+# Filename: scripts/core/make-executable.sh
 # Created: 2026-01-20
 # Description: Ensure all .sh scripts (and key Python entrypoints) in the current repo are executable.
 # Usage:
-#   bash scripts/make-executable.sh
+#   bash scripts/core/make-executable.sh
 # Notes:
 #   - Runs in the current working directory by default; uses the git root if detected.
 #   - Idempotent and safe to re-run.

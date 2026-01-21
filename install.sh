@@ -63,14 +63,13 @@ fi
 cd "${HOMELAB_DIR}"
 
 # Ensure scripts are executable (prevents 'Permission denied' during bootstrap)
-if [ -f "scripts/make-executable.sh" ]; then
-  bash scripts/make-executable.sh
+if [ -f "scripts/core/make-executable.sh" ]; then
+  bash scripts/core/make-executable.sh
 else
-  echo "Note: scripts/make-executable.sh not found. Applying fallback chmod for scripts/*.sh"
+  echo "Note: scripts/core/make-executable.sh not found. Applying fallback chmod for scripts/*.sh"
   find scripts -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 fi
 
 [ -f "Makefile" ] || die "Makefile not found in ${HOMELAB_DIR}. Is this the right repo?"
 
-make bootstrap
 make menu
