@@ -37,6 +37,7 @@ state_set() {
 
   if grep -qE "^${nkey}=" "$STATE_FILE"; then
     # Portable in-place edit.
+    local tmpfile
     tmpfile="${STATE_FILE}.tmp"
     awk -v k="$nkey" -v v="$value" 'BEGIN{FS=OFS="="} {if($1==k){$2=v} print}' "$STATE_FILE" >"$tmpfile"
     mv "$tmpfile" "$STATE_FILE"
@@ -46,7 +47,7 @@ state_set() {
 }
 
 state_get() {
-  local key def nkey
+  local key def nkey value
   key="$1"; def="${2:-}"
   nkey="$(_state_key "$key")"
   state_init

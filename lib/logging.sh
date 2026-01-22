@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Filename: 01_repo/lib/logging.sh
+# Filename: lib/logging.sh
 # Created: 2026-01-11
-# Description: Provide Catppuccin-themed logging helpers (info/warn/error/ok) for bash scripts.
+# Description: Provide Catppuccin-themed logging helpers (info/warn/error/ok) for Bash scripts.
 # Usage:
-#   source 01_repo/lib/logging.sh
+#   source "${REPO_ROOT}/lib/logging.sh"
 # Notes:
 #   - Set CATPPUCCIN_FLAVOUR to LATTE, FRAPPE, MACCHIATO, or MOCHA.
 #   - Set NO_COLOR to disable colours.
@@ -39,6 +39,7 @@ get_rgb() {
     LATTE:SURFACE2)  echo "172;176;190" ;;  LATTE:SURFACE1)  echo "188;192;204" ;;
     LATTE:SURFACE0)  echo "204;208;218" ;;  LATTE:BASE)      echo "239;241;245" ;;
     LATTE:MANTLE)    echo "230;233;239" ;;  LATTE:CRUST)     echo "220;224;232" ;;
+
     FRAPPE:ROSEWATER) echo "242;213;207" ;; FRAPPE:FLAMINGO)  echo "238;190;190" ;;
     FRAPPE:PINK)      echo "244;184;228" ;; FRAPPE:MAUVE)     echo "202;158;230" ;;
     FRAPPE:RED)       echo "231;130;132" ;; FRAPPE:MAROON)    echo "234;153;156" ;;
@@ -52,6 +53,7 @@ get_rgb() {
     FRAPPE:SURFACE2)  echo "98;104;128"  ;; FRAPPE:SURFACE1)  echo "81;87;109"   ;;
     FRAPPE:SURFACE0)  echo "65;69;89"    ;; FRAPPE:BASE)      echo "48;52;70"    ;;
     FRAPPE:MANTLE)    echo "41;44;60"    ;; FRAPPE:CRUST)     echo "35;38;52"    ;;
+
     MACCHIATO:ROSEWATER) echo "244;219;214" ;; MACCHIATO:FLAMINGO)  echo "240;198;198" ;;
     MACCHIATO:PINK)      echo "245;189;230" ;; MACCHIATO:MAUVE)     echo "198;160;246" ;;
     MACCHIATO:RED)       echo "237;135;150" ;; MACCHIATO:MAROON)    echo "238;153;160" ;;
@@ -65,20 +67,22 @@ get_rgb() {
     MACCHIATO:SURFACE2)  echo "91;96;120"   ;; MACCHIATO:SURFACE1)  echo "73;77;100"   ;;
     MACCHIATO:SURFACE0)  echo "54;58;79"    ;; MACCHIATO:BASE)      echo "36;39;58"    ;;
     MACCHIATO:MANTLE)    echo "30;32;48"    ;; MACCHIATO:CRUST)     echo "24;25;38"    ;;
-    MOCHA:ROSEWATER) echo "245;224;220" ;;  MOCHA:FLAMINGO)  echo "242;205;205" ;;
-    MOCHA:PINK)      echo "245;194;231" ;;  MOCHA:MAUVE)     echo "203;166;247" ;;
-    MOCHA:RED)       echo "243;139;168" ;;  MOCHA:MAROON)    echo "235;160;172" ;;
-    MOCHA:PEACH)     echo "250;179;135" ;;  MOCHA:YELLOW)    echo "249;226;175" ;;
-    MOCHA:GREEN)     echo "166;227;161" ;;  MOCHA:TEAL)      echo "148;226;213" ;;
-    MOCHA:SKY)       echo "137;220;235" ;;  MOCHA:SAPPHIRE)  echo "116;199;236" ;;
-    MOCHA:BLUE)      echo "137;180;250" ;;  MOCHA:LAVENDER)  echo "180;190;254" ;;
-    MOCHA:TEXT)      echo "205;214;244" ;;  MOCHA:SUBTEXT1)  echo "186;194;222" ;;
-    MOCHA:SUBTEXT0)  echo "166;173;200" ;;  MOCHA:OVERLAY2)  echo "147;153;178" ;;
-    MOCHA:OVERLAY1)  echo "127;132;156" ;;  MOCHA:OVERLAY0)  echo "108;112;134" ;;
-    MOCHA:SURFACE2)  echo "88;91;112"   ;;  MOCHA:SURFACE1)  echo "69;71;90"    ;;
-    MOCHA:SURFACE0)  echo "49;50;68"    ;;  MOCHA:BASE)      echo "30;30;46"    ;;
-    MOCHA:MANTLE)    echo "24;24;37"    ;;  MOCHA:CRUST)     echo "17;17;27"    ;;
-    *) echo "128;128;128" ;;
+
+    MOCHA:ROSEWATER) echo "245;224;220" ;; MOCHA:FLAMINGO)  echo "242;205;205" ;;
+    MOCHA:PINK)      echo "245;194;231" ;; MOCHA:MAUVE)     echo "203;166;247" ;;
+    MOCHA:RED)       echo "243;139;168" ;; MOCHA:MAROON)    echo "235;160;172" ;;
+    MOCHA:PEACH)     echo "250;179;135" ;; MOCHA:YELLOW)    echo "249;226;175" ;;
+    MOCHA:GREEN)     echo "166;227;161" ;; MOCHA:TEAL)      echo "148;226;213" ;;
+    MOCHA:SKY)       echo "137;220;235" ;; MOCHA:SAPPHIRE)  echo "116;199;236" ;;
+    MOCHA:BLUE)      echo "137;180;250" ;; MOCHA:LAVENDER)  echo "180;190;254" ;;
+    MOCHA:TEXT)      echo "205;214;244" ;; MOCHA:SUBTEXT1)  echo "186;194;222" ;;
+    MOCHA:SUBTEXT0)  echo "166;173;200" ;; MOCHA:OVERLAY2)  echo "147;153;178" ;;
+    MOCHA:OVERLAY1)  echo "127;132;156" ;; MOCHA:OVERLAY0)  echo "108;112;134" ;;
+    MOCHA:SURFACE2)  echo "88;91;112"   ;; MOCHA:SURFACE1)  echo "69;71;90"    ;;
+    MOCHA:SURFACE0)  echo "49;50;68"    ;; MOCHA:BASE)      echo "30;30;46"    ;;
+    MOCHA:MANTLE)    echo "24;24;37"    ;; MOCHA:CRUST)     echo "17;17;27"    ;;
+
+    *) echo "255;255;255" ;;
   esac
 }
 
@@ -93,6 +97,19 @@ _supports_truecolor() {
 }
 
 if _supports_truecolor; then
+  # ---------------------------------------------------------------------------
+  # Public formatting constants
+  #
+  # These variables are intentionally global because callers often use them to
+  # format their own output (for example: printf "%bHello%b\n" "$BOLD" "$RESET").
+  #
+  # Exported globals:
+  #   RESET, BOLD, DIM, ITALIC, UNDERLINE
+  #
+  # If you source this library in a larger script, avoid reusing these names for
+  # other purposes to prevent collisions.
+  # ---------------------------------------------------------------------------
+  declare -g RESET BOLD DIM ITALIC UNDERLINE
   RESET=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'; ITALIC=$'\033[3m'; UNDERLINE=$'\033[4m'
   fg() { printf "\033[38;2;%sm" "$(get_rgb "$1")"; }
   bg() { printf "\033[48;2;%sm" "$(get_rgb "$1")"; }
@@ -113,7 +130,7 @@ _log() {
     printf "%b[%s]%b %b%s%b\n" "$(fg "$colour")" "$label" "$RESET" "$(fg "$colour")" "$*" "$RESET"
   fi
 }
-info()  { _log BLUE   "ℹ️  INFO" "$@"; }
-warn()  { _log YELLOW "⚠️  WARN" "$@"; }
-error() { _log RED    "❌ ERROR" "$@"; }
-ok()    { _log GREEN  "✅  OK " "$@"; }
+info()  { _log BLUE   "ℹ️ " "$*"; }
+warn()  { _log PEACH  "⚠️ " "$*"; }
+error() { _log RED    "✖ " "$*"; }
+ok()    { _log GREEN  "✔ " "$*"; }

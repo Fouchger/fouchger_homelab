@@ -10,7 +10,7 @@
 #   - Safe-by-default: only sets git user.name/user.email if currently unset.
 #   - Supports interactive and non-interactive usage.
 #   - In non-interactive mode, provide inputs via environment variables.
-#   - Tokens are never written to disk; they are only piped into gh.
+#   - Token is passed via stdin; GitHub CLI will store auth for future use.
 #
 # Environment:
 #   NONINTERACTIVE   1 disables prompts and requires env vars (default: 0)

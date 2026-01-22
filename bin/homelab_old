@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Filename: bin/homelab
+# Created: 2026-01-18
+# Updated: 2026-01-19
+# Description: homelab_2026.2 interactive CLI entrypoint.
+# Usage:
+#   make menu
+# Developer notes:
+#   - Keep this as a thin orchestrator. Real logic sits in scripts/.
+# -----------------------------------------------------------------------------
+
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)/lib/paths.sh"
+source "${REPO_ROOT}/lib/logging.sh"
+source "${REPO_ROOT}/lib/core.sh"
+source "${REPO_ROOT}/lib/run.sh"
+source "${REPO_ROOT}/lib/state.sh"
+source "${REPO_ROOT}/lib/ui.sh"
+
+run_init "menu"
+state_init
+ui_init
+
+usage() {
+  cat <<'EOF'
+homelab_2026.2
+
+Usage:
+  bin/homelab                 Launch interactive menu
+  bin/homelab validate        Validate configuration
+  bin/homelab bootstrap       Install prerequisites on this node
+  bin/homelab plan            Terraform plan
+  bin/homelab apply           Terraform apply then render inventory
+  bin/homelab destroy         Terraform destroy
+  bin/homelab ansible [--] .. Run Ansible (passes extra args through)
+  bin/homelab healthcheck     Run end-to-end health checks
+  bin/homelab lint            Run local quality gates
+  bin/homelab test [mode]     Run test suite (mode: quick|infra|apply)
+  bin/homelab settings        Launch questionnaires
+  bin/homelab dev-auth [cmd]  Configure Git identity and GitHub CLI auth
+
+Notes:
+  - To opt out of validation: SKIP_VALIDATE=yes ...
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+# Non-interactive command mode (preferred for automation).
+if [[ -n "${1:-}" ]]; then
+  cmd="$1"; shift || true
+  case "${cmd}" in
+    validate) scripts/core/validate.sh ;;
+    bootstrap) scripts/core/bootstrap.sh ;;
+    plan) scripts/proxmox/terraform.sh plan ;;
+    apply) scripts/proxmox/terraform.sh apply ;;
+    destroy) scripts/proxmox/terraform.sh destroy ;;
+    ansible) scripts/core/ansible.sh "$@" ;;
+    healthcheck) scripts/core/healthcheck.sh ;;
+    lint) scripts/core/lint.sh ;;
+    test) scripts/tests/run.sh "${1:-quick}" ;;
+    settings) scripts/core/questionnaires.sh ;;
+    dev-auth) scripts/core/dev-auth.sh "${1:-all}" ;;
+    *)
+      error "Unknown command: ${cmd}"
+      usage
+      exit 2
+      ;;
+  esac
+  exit 0
+fi
+
+# Ensure the terminal is restored if dialog is used.
+cleanup_ui() { command -v dialog >/dev/null 2>&1 && clear || true; }
+trap cleanup_ui EXIT
+
+mikrotik_menu() {
+  local choice
+  while true; do
+    ui_menu "MikroTik" "Backups, health checks, and DNS HA" choice \
+      1 "💾 Backup MikroTik now" \
+      2 "🩺 Run health check now" \
+      3 "🌐 Configure DHCP to advertise dns01 + dns02" \
+      4 "🧾 Install start config locally" \
+      5 "🚀 Apply start config to MikroTik" \
+      6 "⬅️ Back"
+
+    case "${choice:-}" in
+      1) scripts/mikrotik/backup.sh ;;
+      2) scripts/mikrotik/healthcheck.sh ;;
+      3) scripts/mikrotik/configure-dns.sh ;;
+      4) scripts/mikrotik/install-start-config.sh ;;
+      5) scripts/mikrotik/apply-start-config.sh ;;
+      6|"") break ;;
+    esac
+  done
+}
+
+menu_main() {
+  local choice
+  while true; do
+    ui_menu "homelab_2026.2" "Choose what you want to do" choice \
+      1 "🧰 Bootstrap this node (prereqs)" \
+      2 "🔐 Configure Proxmox API token" \
+      3 "📦 Download Proxmox templates" \
+      4 "🏗️  Provision or update VMs/LXCs (Terraform apply)" \
+      5 "🧯 Destroy VMs/LXCs (Terraform destroy)" \
+      6 "🛠️  Configure services (Ansible)" \
+      7 "📡 MikroTik integration" \
+      8 "⚙️  Settings and questionnaires" \
+      9 "🧑‍💻 Developer: Git identity + GitHub auth" \
+      10 "📄 View logs folder" \
+      11 "🚪 Exit"
+
+    case "${choice:-}" in
+      1) scripts/core/bootstrap.sh ;;
+      2) scripts/proxmox/bootstrap-api-token.sh ;;
+      3) scripts/proxmox/templates.sh ;;
+      4) scripts/proxmox/terraform.sh apply ;;
+      5) scripts/proxmox/terraform.sh destroy ;;
+      6) scripts/core/ansible.sh ;;
+      7) mikrotik_menu ;;
+      8) scripts/core/questionnaires.sh ;;
+      9) scripts/core/dev-auth.sh all ;;
+      10) ok "Logs live here: ${LOG_DIR_DEFAULT}" ;;
+      11|"") break ;;
+    esac
+  done
+}
+
+menu_main

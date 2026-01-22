@@ -1,137 +1,161 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # Filename: bin/homelab
-# Created: 2026-01-20
-# Updated: 2026-01-20
+# Created: 2026-01-18
+# Updated: 2026-01-22
 # Description: fouchger_homelab interactive CLI entrypoint.
 # Usage:
 #   make menu
 # Developer notes:
 #   - Keep this as a thin orchestrator. Real logic sits in scripts/.
+#   - UI is standardised via lib/ui.sh (dialog only).
+#   - All menus must use ui_menu/ui_checklist/ui_input for consistent behaviour.
 # -----------------------------------------------------------------------------
 
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)/lib/paths.sh"
+# =============================================================================
+# Bootstrap imports
+# =============================================================================
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+
+# shellcheck source=lib/paths.sh
+source "${REPO_ROOT}/lib/paths.sh"
+# shellcheck source=lib/logging.sh
 source "${REPO_ROOT}/lib/logging.sh"
+# shellcheck source=lib/core.sh
 source "${REPO_ROOT}/lib/core.sh"
+# shellcheck source=lib/run.sh
 source "${REPO_ROOT}/lib/run.sh"
-source "${REPO_ROOT}/lib/state.sh"
+# shellcheck source=lib/ui.sh
 source "${REPO_ROOT}/lib/ui.sh"
+source "${REPO_ROOT}/lib/state.sh"
 
-run_init "menu"
-state_init
-ui_ensure_ui_deps
-
-usage() {
-  cat <<'EOF'
-fouchger_homelab
-
-Usage:
-  bin/homelab                 Launch interactive menu
-  bin/homelab dev-auth        Git and Github log in and authentication
-  bin/homelab validate        Validate configuration
-  bin/homelab bootstrap       Install prerequisites on this node
-  bin/homelab plan            Terraform plan
-  bin/homelab apply           Terraform apply then render inventory
-  bin/homelab destroy         Terraform destroy
-  bin/homelab ansible [--] .. Run Ansible (passes extra args through)
-  bin/homelab healthcheck     Run end-to-end health checks
-  bin/homelab lint            Run local quality gates
-  bin/homelab test [mode]     Run test suite (mode: quick|infra|apply)
-  bin/homelab settings        Launch questionnaires
-
-Notes:
-  - To opt out of validation: SKIP_VALIDATE=yes ...
-EOF
+# =============================================================================
+# Optional: source feature menus / workflows (if present in your repo)
+# Notes
+#   - This keeps bin/homelab thin while allowing modular menu growth.
+#   - If a file is missing, we skip it without failing.
+# =============================================================================
+source_if_exists() {
+  local f="$1"
+  [[ -f "${f}" ]] && source "${f}"
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  usage
-  exit 0
-fi
+# Example modules (adjust to match your repo structure)
+source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
+source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
+source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
+source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
 
-# Non-interactive command mode (preferred for automation).
-if [[ -n "${1:-}" ]]; then
-  cmd="$1"; shift || true
-  case "${cmd}" in
-    dev-auth) scripts/core/dev-auth.sh ;;
-    validate) scripts/core/validate.sh ;;
-    bootstrap) scripts/core/bootstrap.sh ;;
-    plan) scripts/proxmox/terraform.sh plan ;;
-    apply) scripts/proxmox/terraform.sh apply ;;
-    destroy) scripts/proxmox/terraform.sh destroy ;;
-    ansible) scripts/core/ansible.sh "$@" ;;
-    healthcheck) scripts/core/healthcheck.sh ;;
-    lint) scripts/core/lint.sh ;;
-    test) scripts/tests/run.sh "${1:-quick}" ;;
-    settings) scripts/core/questionnaires.sh ;;
-    *)
-      error "Unknown command: ${cmd}"
-      usage
-      exit 2
-      ;;
-  esac
-  exit 0
-fi
+# =============================================================================
+# Guardrails
+# =============================================================================
+require_function() {
+  # Usage: require_function func_name "friendly label"
+  local fn="$1" label="${2:-$1}"
+  if ! declare -F "${fn}" >/dev/null 2>&1; then
+    ui_msgbox "Missing function" \
+      "The menu item '${label}' is not available.\n\nExpected function:\n  ${fn}\n\nCheck that the relevant script is sourced."
+    return 1
+  fi
+  return 0
+}
 
-# Ensure the terminal is restored if dialog is used.
-cleanup_ui() { command -v dialog >/dev/null 2>&1 && clear || true; }
-trap cleanup_ui EXIT
+# =============================================================================
+# Submenus
+# =============================================================================
+infrastructure_menu() {
+  ui_init
 
-mikrotik_menu() {
-  local choice
   while true; do
-    ui_menu "MikroTik" "Backups, health checks, and DNS HA" choice \
-      1 "💾 Backup MikroTik now" \
-      2 "🩺 Run health check now" \
-      3 "🌐 Configure DHCP to advertise dns01 + dns02" \
-      4 "🧾 Install start config locally" \
-      5 "🚀 Apply start config to MikroTik" \
-      6 "⬅️ Back"
+    local choice=""
+    ui_menu "Infrastructure" "Select an area:" choice \
+      1 "Proxmox templates" \
+      2 "MikroTik integration" \
+      3 "DNS services" \
+      4 "Back"
 
-    case "${choice:-}" in
-      1) scripts/mikrotik/backup.sh ;;
-      2) scripts/mikrotik/healthcheck.sh ;;
-      3) scripts/mikrotik/configure-dns.sh ;;
-      4) scripts/mikrotik/install-start-config.sh ;;
-      5) scripts/mikrotik/apply-start-config.sh ;;
-      6|"") break ;;
+    [[ -n "${choice}" ]] || return 0
+
+    case "${choice}" in
+      1)
+        require_function "proxmox_templates_menu" "Proxmox templates" || continue
+        proxmox_templates_menu
+        ;;
+      2)
+        require_function "mikrotik_menu" "MikroTik integration" || continue
+        mikrotik_menu
+        ;;
+      3)
+        require_function "dns_menu" "DNS services" || continue
+        dns_menu
+        ;;
+      4) return 0 ;;
+      *) return 0 ;;
     esac
   done
 }
 
-menu_main() {
-  local choice
-  while true; do
-    ui_menu "homelab_2026.2" "Choose what you want to do" choice \
-      1 "🧰 Git and Github log in and authentication" \
-      2 "🧰 Bootstrap this node (prereqs)" \
-      3 "🔐 Configure Proxmox API token" \
-      4 "📦 Download Proxmox templates" \
-      5 "🏗️  Provision or update VMs/LXCs (Terraform apply)" \
-      6 "🧯 Destroy VMs/LXCs (Terraform destroy)" \
-      7 "🛠️  Configure services (Ansible)" \
-      8 "📡 MikroTik integration" \
-      9 "⚙️  Settings and questionnaires" \
-      10 "📄 View logs folder" \
-      99 "🚪 Exit"
+workflows_menu() {
+  ui_init
 
-    case "${choice:-}" in
-      1) scripts/core/dev-auth.sh ;;
-      2) scripts/core/bootstrap.sh ;;
-      3) scripts/proxmox/bootstrap-api-token.sh ;;
-      4) scripts/proxmox/templates.sh ;;
-      5) scripts/proxmox/terraform.sh apply ;;
-      6) scripts/proxmox/terraform.sh destroy ;;
-      7) scripts/core/ansible.sh ;;
-      8) mikrotik_menu ;;
-      9) scripts/core/questionnaires.sh ;;
-      10) ok "Logs live here: ${LOG_DIR_DEFAULT}" ;;
-      99|"") break ;;
+  while true; do
+    local choice=""
+    ui_menu "Workflows" "Choose a workflow:" choice \
+      1 "Run questionnaires" \
+      2 "Back"
+
+    [[ -n "${choice}" ]] || return 0
+
+    case "${choice}" in
+      1)
+        require_function "run_questionnaires" "Run questionnaires" || continue
+        run_questionnaires
+        ;;
+      2) return 0 ;;
+      *) return 0 ;;
     esac
   done
 }
 
-menu_main
+# =============================================================================
+# Main menu
+# =============================================================================
+main_menu() {
+  ui_init
+
+  while true; do
+    local choice=""
+    ui_menu "Fouchger_Homelab" "Choose an action:" choice \
+      1 "Infrastructure" \
+      2 "Workflows" \
+      3 "App Manager (LXC tools)" \
+      4 "Exit"
+
+    [[ -n "${choice}" ]] || break
+
+    case "${choice}" in
+      1) infrastructure_menu ;;
+      2) workflows_menu ;;
+      3)
+        # These functions exist in your App Manager script set.
+        # If you wire them in as a submenu, keep the UI consistent.
+        require_function "app_manager_menu" "App Manager (LXC tools)" || {
+          ui_msgbox "Not wired yet" \
+            "App Manager submenu is not wired in this entrypoint.\n\nIf you have the App Manager functions available (profiles, checklist, apply, pins), expose them as:\n  app_manager_menu\n\nOr source the script that defines them."
+          continue
+        }
+        app_manager_menu
+        ;;
+      4) break ;;
+      *) break ;;
+    esac
+  done
+}
+
+# =============================================================================
+# Entry point
+# =============================================================================
+main_menu

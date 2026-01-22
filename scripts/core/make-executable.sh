@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # Filename: scripts/core/make-executable.sh
 # Created: 2026-01-20
-# Description: Ensure all .sh scripts (and key Python entrypoints) in the current repo are executable.
+# Description: Ensure all .sh scripts (and key entrypoints) in the current repo are executable.
 # Usage:
 #   bash scripts/core/make-executable.sh
 # Notes:
