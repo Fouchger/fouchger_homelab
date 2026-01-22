@@ -163,3 +163,8 @@ ui_checklist() {
   rm -f -- "${tmp}" || true
   return 0
 }
+
+ui_exit() {
+  # Clear the screen to avoid leaving dialog artefacts behind
+  clear || true
+}

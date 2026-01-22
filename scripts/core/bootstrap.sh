@@ -31,25 +31,9 @@ if ! is_debian_like; then
 fi
 
 apt_install \
-  ca-certificates \
-  curl \
   git \
   make \
-  python3 \
-  python3-venv \
-  python3-pip \
-  pipx \
-  rsync \
-  openssh-client \
   dialog
 
-# Ansible (prefer pipx to avoid system package drift)
-if ! have_cmd ansible; then
-  info "Installing Ansible via pipx"
-  pipx ensurepath || true
-  pipx install --include-deps ansible
-else
-  ok "Ansible already present: $(ansible --version | head -n1)"
-fi
 
 ok "Bootstrap complete. Next: make menu"

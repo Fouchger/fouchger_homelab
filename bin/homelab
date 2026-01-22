@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # Filename: bin/homelab
-# Created: 2026-01-18
-# Updated: 2026-01-22
+# Created : 2026-01-23
+# Updated : 2026-01-23
 # Description: fouchger_homelab interactive CLI entrypoint.
 # Usage:
 #   make menu
+#
 # Developer notes:
-#   - Keep this as a thin orchestrator. Real logic sits in scripts/.
+#   - Keep this as a thin orchestrator.
+#   - Menu routing lives in lib/menu.sh
 #   - UI is standardised via lib/ui.sh (dialog only).
-#   - All menus must use ui_menu/ui_checklist/ui_input for consistent behaviour.
+#   - Operational orchestration lives in lib/actions.sh
 # -----------------------------------------------------------------------------
 
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# =============================================================================
-# Bootstrap imports
-# =============================================================================
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+# Core libs
 # shellcheck source=lib/paths.sh
 source "${REPO_ROOT}/lib/paths.sh"
 # shellcheck source=lib/logging.sh
@@ -28,134 +28,15 @@ source "${REPO_ROOT}/lib/logging.sh"
 source "${REPO_ROOT}/lib/core.sh"
 # shellcheck source=lib/run.sh
 source "${REPO_ROOT}/lib/run.sh"
-# shellcheck source=lib/ui.sh
-source "${REPO_ROOT}/lib/ui.sh"
+# shellcheck source=lib/state.sh
 source "${REPO_ROOT}/lib/state.sh"
 
-# =============================================================================
-# Optional: source feature menus / workflows (if present in your repo)
-# Notes
-#   - This keeps bin/homelab thin while allowing modular menu growth.
-#   - If a file is missing, we skip it without failing.
-# =============================================================================
-source_if_exists() {
-  local f="$1"
-  [[ -f "${f}" ]] && source "${f}"
-}
+# UI + framework
+# shellcheck source=lib/ui.sh
+source "${REPO_ROOT}/lib/ui.sh"
+# shellcheck source=lib/actions.sh
+source "${REPO_ROOT}/lib/actions.sh"
+# shellcheck source=lib/menu.sh
+source "${REPO_ROOT}/lib/menu.sh"
 
-# Example modules (adjust to match your repo structure)
-source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
-source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
-source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
-source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
-
-# =============================================================================
-# Guardrails
-# =============================================================================
-require_function() {
-  # Usage: require_function func_name "friendly label"
-  local fn="$1" label="${2:-$1}"
-  if ! declare -F "${fn}" >/dev/null 2>&1; then
-    ui_msgbox "Missing function" \
-      "The menu item '${label}' is not available.\n\nExpected function:\n  ${fn}\n\nCheck that the relevant script is sourced."
-    return 1
-  fi
-  return 0
-}
-
-# =============================================================================
-# Submenus
-# =============================================================================
-infrastructure_menu() {
-  ui_init
-
-  while true; do
-    local choice=""
-    ui_menu "Infrastructure" "Select an area:" choice \
-      1 "Proxmox templates" \
-      2 "MikroTik integration" \
-      3 "DNS services" \
-      4 "Back"
-
-    [[ -n "${choice}" ]] || return 0
-
-    case "${choice}" in
-      1)
-        require_function "proxmox_templates_menu" "Proxmox templates" || continue
-        proxmox_templates_menu
-        ;;
-      2)
-        require_function "mikrotik_menu" "MikroTik integration" || continue
-        mikrotik_menu
-        ;;
-      3)
-        require_function "dns_menu" "DNS services" || continue
-        dns_menu
-        ;;
-      4) return 0 ;;
-      *) return 0 ;;
-    esac
-  done
-}
-
-workflows_menu() {
-  ui_init
-
-  while true; do
-    local choice=""
-    ui_menu "Workflows" "Choose a workflow:" choice \
-      1 "Run questionnaires" \
-      2 "Back"
-
-    [[ -n "${choice}" ]] || return 0
-
-    case "${choice}" in
-      1)
-        require_function "run_questionnaires" "Run questionnaires" || continue
-        run_questionnaires
-        ;;
-      2) return 0 ;;
-      *) return 0 ;;
-    esac
-  done
-}
-
-# =============================================================================
-# Main menu
-# =============================================================================
-main_menu() {
-  ui_init
-
-  while true; do
-    local choice=""
-    ui_menu "Fouchger_Homelab" "Choose an action:" choice \
-      1 "Infrastructure" \
-      2 "Workflows" \
-      3 "App Manager (LXC tools)" \
-      4 "Exit"
-
-    [[ -n "${choice}" ]] || break
-
-    case "${choice}" in
-      1) infrastructure_menu ;;
-      2) workflows_menu ;;
-      3)
-        # These functions exist in your App Manager script set.
-        # If you wire them in as a submenu, keep the UI consistent.
-        require_function "app_manager_menu" "App Manager (LXC tools)" || {
-          ui_msgbox "Not wired yet" \
-            "App Manager submenu is not wired in this entrypoint.\n\nIf you have the App Manager functions available (profiles, checklist, apply, pins), expose them as:\n  app_manager_menu\n\nOr source the script that defines them."
-          continue
-        }
-        app_manager_menu
-        ;;
-      4) break ;;
-      *) break ;;
-    esac
-  done
-}
-
-# =============================================================================
-# Entry point
-# =============================================================================
 main_menu
