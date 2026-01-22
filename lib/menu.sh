@@ -12,7 +12,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 #-----------------------------------------------------------------------------
-# Main Menu Setup
+# Sub Menu Setup
 #-----------------------------------------------------------------------------
 bootstrap_dev_server_menu() {
   while true; do
@@ -33,6 +33,29 @@ bootstrap_dev_server_menu() {
   done
 }
 
+app_manager_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Ubuntu App Manager - Run Local" "Choose an action:" choice \
+      1 "Apply profile (replace selections)" \
+      2 "Apply profile (add to selections)" \
+      3 "Change selections" \
+      4 "Apply install/uninstall" \
+      5 "Edit version pins" \
+      6 "Back"
+
+    [[ -n "${choice}" ]] || return 0
+
+    case "${choice}" in
+      1) choose_and_apply_profile_replace ;;
+      2) choose_and_apply_profile_add ;;
+      3) run_checklist ;;
+      4) apply_changes ;;
+      5) edit_version_pins ;;
+      6) return 0 ;;
+    esac
+  done
+}
 
 infrastructure_menu() {
   while true; do

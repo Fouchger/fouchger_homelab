@@ -33,7 +33,7 @@ homelab_load_modules() {
   source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
   source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
   source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
-  source_if_exists "${REPO_ROOT}/scripts/core/bootstrap.sh"
+  source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
 }
 
 require_function() {

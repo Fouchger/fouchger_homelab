@@ -23,11 +23,6 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)/lib/paths.sh"
-source "${REPO_ROOT}/lib/logging.sh"
-source "${REPO_ROOT}/lib/core.sh"
-source "${REPO_ROOT}/lib/run.sh"
-
 run_init "dev-auth"
 
 : "${NONINTERACTIVE:=0}"
