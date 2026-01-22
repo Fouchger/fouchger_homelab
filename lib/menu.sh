@@ -14,25 +14,6 @@ IFS=$'\n\t'
 #-----------------------------------------------------------------------------
 # Sub Menu Setup
 #-----------------------------------------------------------------------------
-bootstrap_dev_server_menu() {
-  while true; do
-    local choice=""
-    ui_menu "Bootstrap Development Server" "Choose an action:" choice \
-      1 "Install Code-Server" \
-      2 "Bootstrap server - Configs and Setup" \
-      3 "Back"
-
-    [[ -n "${choice}" ]] || return 0
-
-    case "${choice}" in
-      1) bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/addon/coder-code-server.sh)" ;;
-      2) scripts/core/bootstrap.sh ;;
-      3) return 0 ;;
-      *) return 0 ;;
-    esac
-  done
-}
-
 app_manager_menu() {
   while true; do
     local choice=""
@@ -57,6 +38,25 @@ app_manager_menu() {
   done
 }
 
+bootstrap_dev_server_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Bootstrap Development Server" "Choose an action:" choice \
+      1 "Install Code-Server" \
+      2 "Bootstrap server - Configs and Setup" \
+      3 "Back"
+
+    [[ -n "${choice}" ]] || return 0
+
+    case "${choice}" in
+      1) bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/addon/coder-code-server.sh)" ;;
+      2) app_manager_menu ;;
+      3) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
+
 infrastructure_menu() {
   while true; do
     local choice=""
@@ -69,9 +69,9 @@ infrastructure_menu() {
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) action_open_proxmox_templates ;;
-      2) action_open_mikrotik_menu ;;
-      3) action_open_dns_menu ;;
+      1) ui_placeholder ;;
+      2) ui_placeholder ;;
+      3) ui_placeholder ;;
       4) return 0 ;;
       *) return 0 ;;
     esac
@@ -88,7 +88,7 @@ workflows_menu() {
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) action_run_questionnaires ;;
+      1) ui_placeholder ;;
       2) return 0 ;;
       *) return 0 ;;
     esac
@@ -104,11 +104,10 @@ main_menu() {
   while true; do
     local choice=""
     ui_menu "Fouchger_Homelab" "Choose an action:" choice \
-      1. Git & Github Management \
-      2. Bootstrap Development Server (admin01) \
-      3. Infrastructure (Plasceholder) \
-      4. Workflows (Plasceholder) \
-      5. App Manager (LXC tools) (Plasceholder) \
+      1. "Git & Github Management" \
+      2. "Bootstrap Development Server (admin01)" \
+      3. "Infrastructure (Plasceholder)" \
+      4. "Workflows (Plasceholder)" \
       6. Exit
 
 
@@ -116,10 +115,9 @@ main_menu() {
 
     case "${choice}" in
       1) scripts/core/dev-auth.sh ;;
-      2) bootstrap_menu ;;
+      2) bootstrap_dev_server_menu ;;
       3) infrastructure_menu ;;
       4) workflows_menu ;;
-      5) action_open_app_manager ;;
       6) break ;;
       *) break ;;
     esac

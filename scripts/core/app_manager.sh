@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Filename: scripts/lxc/app_manager.sh
+# Filename: scripts/core/app_manager.sh
 # Created: 2026-01-23
 # Description: Ubuntu LXC App Manager (dialog UI) wired into fouchger_homelab menus.
 #

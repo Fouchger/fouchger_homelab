@@ -1,9 +1,14 @@
 # -----------------------------------------------------------------------------
-# fouchger_homelab Makefile
-# -----------------------------------------------------------------------------
+# Filename: Makefile
+# Created:  2026-01-20
+# Updated:  2026-01-22
+# Description: Makefile for Fouchger's Homelab automation
+# Usage: Run 'make <target>' to execute specific tasks
 # Developer notes:
 # - Keep targets idempotent and safe-by-default.
 # - Prefer calling scripts under scripts/ rather than embedding logic here.
+# Maintainer: Gert
+# -----------------------------------------------------------------------------
 
 SHELL := /usr/bin/env bash
 
@@ -22,7 +27,7 @@ menu: ## Launch the interactive homelab menu
 	@bin/homelab
 
 .PHONY: validate
-validate: ## Validate configuration (reads ~/.config/homelab_2026_2/state.env)
+validate: ## Validate configuration (reads ~/.config/fouchger_homelab/state.env)
 	@scripts/core/validate.sh
 
 .PHONY: healthcheck

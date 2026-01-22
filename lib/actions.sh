@@ -23,19 +23,6 @@ source_if_exists() {
   [[ -f "${f}" ]] && source "${f}"
 }
 
-# -----------------------------------------------------------------------------
-# load modules all at once
-# -----------------------------------------------------------------------------
-homelab_load_modules() {
-  # Optional: source feature menus / workflows (best-effort)
-  # If a file is missing, we skip it without failing.
-  source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
-  source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
-  source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
-  source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
-  source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
-}
-
 require_function() {
   # Usage: require_function func_name "friendly label"
   local fn="$1" label="${2:-$1}"
@@ -53,13 +40,6 @@ homelab_load_modules
 # -----------------------------------------------------------------------------
 # Action wrappers called by menus
 # -----------------------------------------------------------------------------
-
-bootstrap_menu() {
-  require_function "bootstrap_dev_server" "Bootstrap Development Server" || return 0
-  bootstrap_dev_server_menu
-}
-
-
 
 action_open_proxmox_templates() {
   require_function "proxmox_templates_menu" "Proxmox templates" || return 0

@@ -29,7 +29,7 @@ while IFS= read -r -d '' file; do
   echo "  chmod +x $file"
 done < <(find "$BASE_DIR" -type f -name "*.sh" -print0)
 
-# 2) Make key Python entrypoints executable (if present)
+# 2) Make key entrypoints executable (if present)
 TARGETS=(
   "$BASE_DIR/bin/homelab"
 )

@@ -23,6 +23,12 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# source modules
+# shellcheck source=lib/modules.sh
+source "${REPO_ROOT}/lib/modules.sh"
+homelab_load_lib
+homelab_load_modules
+
 run_init "dev-auth"
 
 : "${NONINTERACTIVE:=0}"

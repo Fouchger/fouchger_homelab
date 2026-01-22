@@ -168,3 +168,15 @@ ui_exit() {
   # Clear the screen to avoid leaving dialog artefacts behind
   clear || true
 }
+
+ui_placeholder() {
+  local title="${1:-Feature unavailable}"
+  local message="${2:-This capability is not yet implemented in this release.}"
+
+  if command -v dialog >/dev/null 2>&1; then
+    dialog --title "$title" \
+           --msgbox "$message\n\nPlease check back in a future release." 8 60
+  else
+    printf '%s\n' "[$title] $message" >&2
+  fi
+}

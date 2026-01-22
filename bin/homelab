@@ -19,24 +19,10 @@ IFS=$'\n\t'
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-# Core libs
-# shellcheck source=lib/paths.sh
-source "${REPO_ROOT}/lib/paths.sh"
-# shellcheck source=lib/logging.sh
-source "${REPO_ROOT}/lib/logging.sh"
-# shellcheck source=lib/core.sh
-source "${REPO_ROOT}/lib/core.sh"
-# shellcheck source=lib/run.sh
-source "${REPO_ROOT}/lib/run.sh"
-# shellcheck source=lib/state.sh
-source "${REPO_ROOT}/lib/state.sh"
-
-# UI + framework
-# shellcheck source=lib/ui.sh
-source "${REPO_ROOT}/lib/ui.sh"
-# shellcheck source=lib/actions.sh
-source "${REPO_ROOT}/lib/actions.sh"
-# shellcheck source=lib/menu.sh
-source "${REPO_ROOT}/lib/menu.sh"
+# source modules
+# shellcheck source=lib/modules.sh
+source "${REPO_ROOT}/lib/modules.sh"
+homelab_load_lib
+homelab_load_modules
 
 main_menu
