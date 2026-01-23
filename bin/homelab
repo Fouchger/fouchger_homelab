@@ -18,7 +18,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-
+echo "$REPO_ROOT"
 # source modules
 # shellcheck source=lib/modules.sh
 source "${REPO_ROOT}/lib/modules.sh"
