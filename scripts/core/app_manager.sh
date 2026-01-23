@@ -380,6 +380,38 @@ write_default_env_if_missing() {
 }
 
 # =============================================================================
+# Apt package availability checks (prevents a single missing package killing the run)
+# =============================================================================
+apt_pkg_has_candidate() {
+  local pkg="$1"
+  apt-cache policy "${pkg}" 2>/dev/null | awk -F': ' '
+    $1=="Candidate" {
+      if ($2=="" || $2=="(none)") exit 1
+      exit 0
+    }
+    END { exit 1 }
+  '
+}
+
+filter_installable_apt_pkgs() {
+  local in_name="$1" out_name="$2" missing_name="$3"
+  local -a installable=() missing=()
+  local p
+
+  eval "for p in \"\${${in_name}[@]}\"; do
+    if apt_pkg_has_candidate \"\$p\"; then
+      installable+=(\"\$p\")
+    else
+      missing+=(\"\$p\")
+    fi
+  done"
+
+  eval "${out_name}=(\"\${installable[@]}\")"
+  eval "${missing_name}=(\"\${missing[@]}\")"
+}
+
+
+# =============================================================================
 # CSV helpers
 # =============================================================================
 pkgs_csv_to_array() {
@@ -407,7 +439,14 @@ pkgs_csv_to_array() {
 unique_pkgs() {
   local in_name="$1" out_name="$2"
   local -a out=()
-  mapfile -t out < <(printf '%s\n' "${!in_name}" | awk 'NF' | sort -u)
+
+  # Expand the full input array via eval, one item per line, then sort unique.
+  mapfile -t out < <(
+    eval "printf '%s\n' \"\${${in_name}[@]}\"" \
+      | awk 'NF' \
+      | sort -u
+  )
+
   eval "${out_name}=(\"\${out[@]}\")"
 }
 
@@ -1109,6 +1148,14 @@ apply_changes() {
   fi
 
   apm_init_paths
+
+  # Ensure lib/logging is in use and logging goes to this file
+  logging_set_file "${LOG_FILE}"
+  logging_begin_capture "${LOG_FILE}"
+  trap 'logging_end_capture' RETURN
+
+  info "Apply started. Log file: ${LOG_FILE}"
+
   ensure_pkg_mgr
   pkg_update_once
   load_env || true
@@ -1117,7 +1164,6 @@ apply_changes() {
   local -a apt_install_list=()
   local need_hashicorp_repo=0
 
-  # Collect apt/hashicorp installs (CSV-safe)
   for row in "${APP_CATALOGUE[@]}"; do
     IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
     [[ "${type}" == "APP" ]] || continue
@@ -1128,7 +1174,8 @@ apply_changes() {
       case "${strategy}" in
         apt|hashicorp_repo)
           [[ "${strategy}" == "hashicorp_repo" ]] && need_hashicorp_repo=1
-          local -a pkgs_arr=(); pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+          local -a pkgs_arr=()
+          pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
           ((${#pkgs_arr[@]})) && apt_install_list+=("${pkgs_arr[@]}")
           ;;
       esac
@@ -1136,6 +1183,7 @@ apply_changes() {
   done
 
   if [[ "${need_hashicorp_repo}" -eq 1 ]]; then
+    info "HashiCorp repo required. Ensuring repo is configured."
     ensure_hashicorp_repo
     pkg_update_once
   fi
@@ -1143,14 +1191,22 @@ apply_changes() {
   local -a apt_install_unique=()
   unique_pkgs apt_install_list apt_install_unique
 
-  if ((${#apt_install_unique[@]})); then
-    log_line "Installing (apt/${PKG_MGR}): ${apt_install_unique[*]}"
-    pkg_install_pkgs "${apt_install_unique[@]}"
-  else
-    log_line "No apt packages selected for installation."
+  local -a apt_install_final=()
+  local -a apt_missing=()
+  filter_installable_apt_pkgs apt_install_unique apt_install_final apt_missing
+
+  if ((${#apt_missing[@]})); then
+    warn "Skipping missing apt packages: ${apt_missing[*]}"
+    ui_msgbox "Skipped packages" "These packages are not available from current apt sources and were skipped:\n\n${apt_missing[*]}\n\nTip: Some items need a vendor repo or a binary install strategy."
   fi
 
-  # Mark apt/hashicorp keys only after verification
+  if ((${#apt_install_final[@]})); then
+    info "Installing (apt/${PKG_MGR}) count=${#apt_install_final[@]}"
+    pkg_install_pkgs "${apt_install_final[@]}"
+  else
+    info "No apt packages selected for installation."
+  fi
+
   for row in "${APP_CATALOGUE[@]}"; do
     IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
     [[ "${type}" == "APP" ]] || continue
@@ -1162,15 +1218,15 @@ apply_changes() {
         apt|hashicorp_repo)
           if [[ -n "${pkgs_csv}" ]] && verify_pkgs_installed "${pkgs_csv}"; then
             mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+            ok "Marked installed: ${key}"
           else
-            log_line "WARN: Not marking ${key}; packages not fully installed: ${pkgs_csv}"
+            warn "Not marking ${key}; packages not fully installed: ${pkgs_csv}"
           fi
           ;;
       esac
     fi
   done
 
-  # Handle non-apt strategies and conservative removals
   for row in "${APP_CATALOGUE[@]}"; do
     IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
     [[ "${type}" == "APP" ]] || continue
@@ -1180,27 +1236,28 @@ apply_changes() {
     case "${strategy}" in
       python|binary|docker_script)
         if [[ "$(get_selection_value "${key}")" == "1" ]]; then
-          log_line "Installing (${strategy}): ${key}"
+          info "Installing (${strategy}): ${key}"
           install_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
           mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+          ok "Installed: ${key}"
         else
-          log_line "Removing (${strategy}): ${key}"
+          info "Removing (${strategy}): ${key}"
           remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
         fi
         ;;
       apt|hashicorp_repo)
         if [[ "$(get_selection_value "${key}")" != "1" ]] && is_marked_installed "${key}"; then
-          log_line "Removing (conservative ${strategy}): ${key}"
+          info "Removing (conservative ${strategy}): ${key}"
           remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
         fi
         ;;
     esac
   done
 
-  log_line "Autoremove via ${PKG_MGR}"
+  info "Autoremove via ${PKG_MGR}"
   pkg_autoremove
 
   audit_selected_apps || true
+  ok "Apply complete."
   ui_msgbox "Complete" "Install / uninstall complete.\n\nLog:\n${LOG_FILE}"
 }
-
