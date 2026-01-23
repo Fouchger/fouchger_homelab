@@ -53,7 +53,9 @@ bootstrap_dev_server_menu() {
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/addon/coder-code-server.sh)" ;;
+      1)
+        ui_confirm "External script" "This will download and run a third-party script from GitHub.\n\nProceed?" || continue
+        bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/addon/coder-code-server.sh)" ;;
       2) app_manager_menu ;;
       3) return 0 ;;
       *) return 0 ;;
@@ -65,17 +67,32 @@ infrastructure_menu() {
   while true; do
     local choice=""
     ui_menu "Infrastructure" "Select an area:" choice \
-      1 "Proxmox templates (Plasceholder)" \
-      2 "MikroTik integration (Plasceholder)" \
-      3 "DNS services (Plasceholder)" \
+      1 "Proxmox templates" \
+      2 "MikroTik integration" \
+      3 "DNS services" \
       4 "Back"
 
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) ui_placeholder ;;
-      2) ui_placeholder ;;
-      3) ui_placeholder ;;
+  1)
+        feature_require "PROXMOX" "Proxmox templates are not enabled yet on this host.
+
+To enable:
+  state_set FEATURE_PROXMOX 1" \
+          && action_open_proxmox_templates ;;
+      2)
+        feature_require "MIKROTIK" "MikroTik integration is currently disabled on this host.
+
+To enable:
+  state_set FEATURE_MIKROTIK 1" \
+          && action_open_mikrotik_menu ;;
+      3)
+        feature_require "DNS" "DNS services are currently disabled on this host.
+
+To enable:
+  state_set FEATURE_DNS 1" \
+          && action_open_dns_menu ;;
       4) return 0 ;;
       *) return 0 ;;
     esac
@@ -86,13 +103,13 @@ workflows_menu() {
   while true; do
     local choice=""
     ui_menu "Workflows" "Choose a workflow:" choice \
-      1 "Run questionnaires (Plasceholder)" \
+      1 "Run questionnaires" \
       2 "Back"
 
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) ui_placeholder ;;
+      1) action_run_questionnaires ;;
       2) return 0 ;;
       *) return 0 ;;
     esac
@@ -110,15 +127,14 @@ main_menu() {
     ui_menu "Fouchger_Homelab" "Choose an action:" choice \
       1 "Git & Github Management" \
       2 "Bootstrap Development Server (admin01)" \
-      3 "Infrastructure (Plasceholder)" \
-      4 "Workflows (Plasceholder)" \
+      3 "Infrastructure" \
+      4 "Workflows" \
       6 Exit
-
 
     [[ -n "${choice}" ]] || break
 
     case "${choice}" in
-      1) scripts/core/dev-auth.sh ;;
+      1) "${REPO_ROOT}/scripts/core/dev-auth.sh" ;;
       2) bootstrap_dev_server_menu ;;
       3) infrastructure_menu ;;
       4) workflows_menu ;;

@@ -2,25 +2,33 @@
 # -----------------------------------------------------------------------------
 # Filename: lib/logging.sh
 # Created: 2026-01-11
-# Description: Provide Catppuccin-themed logging helpers (info/warn/error/ok) for Bash scripts.
+# Updated: 2026-01-23
+# Description: Catppuccin-themed logging helpers for Bash scripts.
 # Usage:
 #   source "${REPO_ROOT}/lib/logging.sh"
+#   info "message"; warn "message"; error "message"; ok "message"
+#   logging_set_files "${LOG_DIR_DEFAULT}/run.clean.log" "${LOG_DIR_DEFAULT}/run.raw.log"
+#   logging_begin_capture   # optional stdout/stderr capture
 # Notes:
 #   - Set CATPPUCCIN_FLAVOUR to LATTE, FRAPPE, MACCHIATO, or MOCHA.
 #   - Set NO_COLOR to disable colours.
+#   - Capture writes a raw log (faithful stream) and an optional cleaned log
+#     with terminal control codes stripped.
 # Maintainer: Gert
 # Contributors: ddployrr project contributors
 # -----------------------------------------------------------------------------
-# --- local helpers (self-contained) ---
-# Some scripts source logging.sh without also sourcing aliases.sh.
-# Keep uc() here to avoid "command not found".
-if ! declare -F uc >/dev/null 2>&1; then
-  uc() { printf "%s" "$1" | tr "[:lower:]" "[:upper:]"; }
-fi
+
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# -----------------------------------------------------------------------------
+# Colour helpers
+# -----------------------------------------------------------------------------
+uc() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
 
 FLAVOUR="${CATPPUCCIN_FLAVOUR:-LATTE}"
 FLAVOUR="$(uc "$FLAVOUR")"
-case "$FLAVOUR" in LATTE|FRAPPE|MACCHIATO|MOCHA) : ;; *) FLAVOUR="LATTE";; esac
+case "$FLAVOUR" in LATTE|FRAPPE|MACCHIATO|MOCHA) : ;; *) FLAVOUR="LATTE" ;; esac
 
 get_rgb() {
   local key flavour
@@ -86,202 +94,113 @@ get_rgb() {
   esac
 }
 
-_supports_truecolor() {
-  if [ -n "${NO_COLOR:-}" ]; then return 1; fi
-  if [ "${COLORTERM:-}" = "truecolor" ] || [ "${COLORTERM:-}" = "24bit" ]; then return 0; fi
-  if command -v tput >/dev/null 2>&1; then
-    local colors; colors="$(tput colors 2>/dev/null || echo 0)"
-    [ "$colors" -ge 256 ] && return 0
-  fi
-  return 1
+_supports_colour() {
+  [[ -n "${NO_COLOR:-}" ]] && return 1
+  [[ "${COLORTERM:-}" == "truecolor" || "${COLORTERM:-}" == "24bit" ]] && return 0
+  command -v tput >/dev/null 2>&1 || return 1
+  local colours
+  colours="$(tput colors 2>/dev/null || echo 0)"
+  [[ "$colours" -ge 16 ]]
 }
 
-if _supports_truecolor; then
-  # ---------------------------------------------------------------------------
-  # Public formatting constants
-  #
-  # These variables are intentionally global because callers often use them to
-  # format their own output (for example: printf "%bHello%b\n" "$BOLD" "$RESET").
-  #
-  # Exported globals:
-  #   RESET, BOLD, DIM, ITALIC, UNDERLINE
-  #
-  # If you source this library in a larger script, avoid reusing these names for
-  # other purposes to prevent collisions.
-  # ---------------------------------------------------------------------------
-  declare -g RESET BOLD DIM ITALIC UNDERLINE
-  RESET=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'; ITALIC=$'\033[3m'; UNDERLINE=$'\033[4m'
+if _supports_colour; then
+  declare -g RESET
+  RESET=$'\033[0m'
   fg() { printf "\033[38;2;%sm" "$(get_rgb "$1")"; }
-  bg() { printf "\033[48;2;%sm" "$(get_rgb "$1")"; }
-  off(){ printf "%b" "$RESET"; }
 else
-  RESET=""; BOLD=""; DIM=""; ITALIC=""; UNDERLINE=""
-  fg(){ :; }; bg(){ :; }; off(){ :; }
+  RESET=""
+  fg() { :; }
 fi
 
-# ---------------------------------------
-# Logging
-# ---------------------------------------
-_log() {
-  local colour="$1" label="$2"; shift 2
-  if [ -n "${NO_COLOR:-}" ] || [ "$(type -t fg)" != "function" ]; then
-    printf "[%s] %s\n" "$label" "$*"
-  else
-    printf "%b[%s]%b %b%s%b\n" "$(fg "$colour")" "$label" "$RESET" "$(fg "$colour")" "$*" "$RESET"
-  fi
-}
-info()  { _log BLUE   "ℹ️ " "$*"; }
-warn()  { _log PEACH  "⚠️ " "$*"; }
-error() { _log RED    "✖ " "$*"; }
-ok()    { _log GREEN  "✔ " "$*"; }
-
 # -----------------------------------------------------------------------------
-# File logging and output capture
+# File targets (optional)
 # -----------------------------------------------------------------------------
-LOG_FILE_DEFAULT=""
-
-logging_set_file() {
-  LOG_FILE_DEFAULT="${1:-}"
-}
-
-_log_to_file() {
-  [[ -n "${LOG_FILE_DEFAULT}" ]] || return 0
-  printf '%s\n' "$*" >>"${LOG_FILE_DEFAULT}" 2>/dev/null || true
-}
-
-# Override _log to also write to file (keeps existing console behaviour)
-_log() {
-  local colour="$1" label="$2"; shift 2
-  _log_to_file "$(date -Is) [${label}] $*"
-  if [ -n "${NO_COLOR:-}" ] || [ "$(type -t fg)" != "function" ]; then
-    printf "[%s] %s\n" "$label" "$*"
-  else
-    printf "%b[%s]%b %b%s%b\n" "$(fg "$colour")" "$label" "$RESET" "$(fg "$colour")" "$*" "$RESET"
-  fi
-}
-
-# Capture everything printed to stdout/stderr in the current shell.
-# Notes:
-# - Saves original FDs so we can restore afterwards.
-# - Uses stdbuf if available to reduce buffering delays.
-logging_begin_capture() {
-  local logfile="${1:-$LOG_FILE_DEFAULT}"
-  [[ -n "${logfile}" ]] || return 0
-  mkdir -p "$(dirname "${logfile}")" >/dev/null 2>&1 || true
-  touch "${logfile}" >/dev/null 2>&1 || true
-
-  exec 3>&1 4>&2
-  if command -v stdbuf >/dev/null 2>&1; then
-    exec > >(stdbuf -oL -eL tee -a "${logfile}") 2> >(stdbuf -oL -eL tee -a "${logfile}" >&2)
-  else
-    exec > >(tee -a "${logfile}") 2> >(tee -a "${logfile}" >&2)
-  fi
-  _log_to_file "$(date -Is) [CAPTURE] begin"
-}
-
-logging_end_capture() {
-  _log_to_file "$(date -Is) [CAPTURE] end"
-  exec 1>&3 2>&4
-  exec 3>&- 4>&-
-}
-
-# =============================================================================
-# lib/logging.sh
-# File logging and terminal capture helpers
-#
-# Notes:
-# - RAW log is a faithful capture of the terminal stream (includes ANSI/dialog codes).
-# - CLEAN log is the same stream but with terminal control codes stripped for readability.
-# =============================================================================
-
-LOG_FILE_DEFAULT=""
-LOG_FILE_RAW=""
 LOG_FILE_CLEAN=""
+LOG_FILE_RAW=""
 
 logging_set_files() {
-  # $1 = clean log, $2 = raw log (optional)
+  # $1 = clean log, $2 = raw log (optional; defaults to clean log)
   LOG_FILE_CLEAN="${1:-}"
   LOG_FILE_RAW="${2:-${1:-}}"
-  LOG_FILE_DEFAULT="${LOG_FILE_CLEAN}"
 }
 
 logging__strip_ansi() {
-  # Strips common ANSI escape sequences and non-printing control chars.
-  # This is intentionally conservative: keeps normal text, removes cursor moves etc.
+  # Conservative stripping of common ANSI escapes and control characters.
   sed -r \
     -e 's/\x1B\[[0-9;?]*[ -/]*[@-~]//g' \
-    -e 's/\x1B\][0-9;]*[^\\a]*(\x07|\x1B\\)//g' \
+    -e 's/\x1B\][0-9;]*[^\a]*(\x07|\x1B\\)//g' \
     -e 's/\r//g' \
     -e 's/[\x00-\x08\x0B\x0C\x0E-\x1F]//g'
 }
 
 _log_to_file() {
-  local line="$*"
-  [[ -n "${LOG_FILE_DEFAULT}" ]] || return 0
-  printf '%s\n' "${line}" >>"${LOG_FILE_DEFAULT}" 2>/dev/null || true
+  local line="$1" target
+  for target in "$LOG_FILE_RAW" "$LOG_FILE_CLEAN"; do
+    [[ -n "$target" ]] || continue
+    mkdir -p "$(dirname "$target")" >/dev/null 2>&1 || true
+    printf '%s\n' "$line" >>"$target" 2>/dev/null || true
+  done
 }
 
-# If you already have _log/info/warn/etc, keep them; just ensure they write to file too.
 _log() {
   local colour="$1" label="$2"; shift 2
   local ts msg
   ts="$(date -Is)"
   msg="${ts} [${label}] $*"
-  _log_to_file "${msg}"
+  _log_to_file "$msg"
 
-  # Console output (existing behaviour)
-  if [ -n "${NO_COLOR:-}" ] || [ "$(type -t fg)" != "function" ]; then
-    printf "[%s] %s\n" "$label" "$*"
+  if [[ -n "${NO_COLOR:-}" ]]; then
+    printf '[%s] %s\n' "$label" "$*"
   else
     printf "%b[%s]%b %b%s%b\n" "$(fg "$colour")" "$label" "$RESET" "$(fg "$colour")" "$*" "$RESET"
   fi
 }
 
+info()  { _log BLUE  'ℹ️ INFO'  "$*"; }
+warn()  { _log PEACH '⚠️ WARN'  "$*"; }
+error() { _log RED   '✖ ERROR' "$*"; }
+ok()    { _log GREEN '✔ OK'    "$*"; }
+
+# -----------------------------------------------------------------------------
+# Optional capture of current process stdout/stderr
+# -----------------------------------------------------------------------------
 logging_begin_capture() {
-  local clean_log="${1:-$LOG_FILE_CLEAN}"
-  local raw_log="${2:-$LOG_FILE_RAW}"
-
-  [[ -n "${raw_log}" ]] || return 0
-  mkdir -p "$(dirname "${raw_log}")" >/dev/null 2>&1 || true
-  touch "${raw_log}" >/dev/null 2>&1 || true
-
-  # If clean log requested, create it too
-  if [[ -n "${clean_log}" ]]; then
-    mkdir -p "$(dirname "${clean_log}")" >/dev/null 2>&1 || true
-    touch "${clean_log}" >/dev/null 2>&1 || true
-  fi
+  # Captures output and appends to LOG_FILE_RAW (and LOG_FILE_CLEAN if set).
+  # NOTE: This affects the current shell process; use with care.
+  [[ -n "$LOG_FILE_RAW" ]] || return 0
 
   exec 3>&1 4>&2
 
-  # Always tee raw stream.
-  # If clean log is set, fork a second tee with ANSI stripping for readability.
+  local raw="$LOG_FILE_RAW" clean="$LOG_FILE_CLEAN"
+  mkdir -p "$(dirname "$raw")" >/dev/null 2>&1 || true
+  touch "$raw" >/dev/null 2>&1 || true
+
+  if [[ -n "$clean" && "$clean" != "$raw" ]]; then
+    mkdir -p "$(dirname "$clean")" >/dev/null 2>&1 || true
+    touch "$clean" >/dev/null 2>&1 || true
+  fi
+
   if command -v stdbuf >/dev/null 2>&1; then
-    if [[ -n "${clean_log}" && "${clean_log}" != "${raw_log}" ]]; then
-      exec > >(stdbuf -oL -eL tee -a "${raw_log}" | stdbuf -oL -eL logging__strip_ansi | tee -a "${clean_log}") \
-           2> >(stdbuf -oL -eL tee -a "${raw_log}" >&2 | stdbuf -oL -eL logging__strip_ansi | tee -a "${clean_log}" >&2)
+    if [[ -n "$clean" && "$clean" != "$raw" ]]; then
+      exec > >(stdbuf -oL -eL tee -a "$raw" | stdbuf -oL -eL logging__strip_ansi | tee -a "$clean") \
+           2> >(stdbuf -oL -eL tee -a "$raw" >&2 | stdbuf -oL -eL logging__strip_ansi | tee -a "$clean" >&2)
     else
-      exec > >(stdbuf -oL -eL tee -a "${raw_log}") 2> >(stdbuf -oL -eL tee -a "${raw_log}" >&2)
+      exec > >(stdbuf -oL -eL tee -a "$raw") 2> >(stdbuf -oL -eL tee -a "$raw" >&2)
     fi
   else
-    if [[ -n "${clean_log}" && "${clean_log}" != "${raw_log}" ]]; then
-      exec > >(tee -a "${raw_log}" | logging__strip_ansi | tee -a "${clean_log}") \
-           2> >(tee -a "${raw_log}" >&2 | logging__strip_ansi | tee -a "${clean_log}" >&2)
+    if [[ -n "$clean" && "$clean" != "$raw" ]]; then
+      exec > >(tee -a "$raw" | logging__strip_ansi | tee -a "$clean") \
+           2> >(tee -a "$raw" >&2 | logging__strip_ansi | tee -a "$clean" >&2)
     else
-      exec > >(tee -a "${raw_log}") 2> >(tee -a "${raw_log}" >&2)
+      exec > >(tee -a "$raw") 2> >(tee -a "$raw" >&2)
     fi
   fi
 
-  printf '%s\n' "$(date -Is) [CAPTURE] begin" >>"${raw_log}" 2>/dev/null || true
-  [[ -n "${clean_log}" ]] && printf '%s\n' "$(date -Is) [CAPTURE] begin" >>"${clean_log}" 2>/dev/null || true
+  _log_to_file "$(date -Is) [CAPTURE] begin"
 }
 
 logging_end_capture() {
-  local clean_log="${1:-$LOG_FILE_CLEAN}"
-  local raw_log="${2:-$LOG_FILE_RAW}"
-
-  [[ -n "${raw_log}" ]] && printf '%s\n' "$(date -Is) [CAPTURE] end" >>"${raw_log}" 2>/dev/null || true
-  [[ -n "${clean_log}" ]] && printf '%s\n' "$(date -Is) [CAPTURE] end" >>"${clean_log}" 2>/dev/null || true
-
+  _log_to_file "$(date -Is) [CAPTURE] end"
   exec 1>&3 2>&4
   exec 3>&- 4>&-
 }

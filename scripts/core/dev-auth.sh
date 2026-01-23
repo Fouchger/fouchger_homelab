@@ -23,35 +23,8 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# -----------------------------------------------------------------------------
-# Purpose: Resolve repository root by locating the .git directory
-# Notes:
-#   - Works from any subdirectory within the repo
-#   - Fails fast if not executed inside a git repository
-# -----------------------------------------------------------------------------
-
-set -Eeuo pipefail
-
-find_repo_root() {
-  local dir
-  dir="$(pwd)"
-
-  while [[ "$dir" != "/" ]]; do
-    if [[ -d "$dir/.git" ]]; then
-      echo "$dir"
-      return 0
-    fi
-    dir="$(dirname "$dir")"
-  done
-
-  return 1
-}
-
-if ! REPO_ROOT="$(find_repo_root)"; then
-  echo "Error: not inside a Git repository (.git not found)" >&2
-  exit 1
-fi
-
+# Anchor off this script so it works even when the repo is installed without a .git directory.
+REPO_ROOT="${REPO_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 export REPO_ROOT
 
 # # source modules
@@ -167,7 +140,6 @@ authenticate_gh() {
   }
 
   if is_gh_authenticated; then
-    # Attempt to extract account from status output (best-effort).
     local acct
     acct="$(
       gh auth status -h "${GH_HOST}" 2>/dev/null \
@@ -184,7 +156,6 @@ authenticate_gh() {
 
   info "GitHub CLI is not authenticated for ${GH_HOST}."
 
-  # Prefer token-based auth first.
   local token="${GITHUB_TOKEN}"
   if [[ -z "${token}" && -z "${CI:-}" && is_tty ]]; then
     read -rsp "Paste your GitHub token (input hidden) or press Enter to skip: " token || true
@@ -200,7 +171,7 @@ authenticate_gh() {
       --hostname "${GH_HOST}" \
       --git-protocol https \
       --with-token >/dev/null; then
-      token="" # clear
+      token=""
       gh auth setup-git --hostname "${GH_HOST}" >/dev/null 2>&1 || true
       if is_gh_authenticated; then
         ok "GitHub CLI authentication successful (token)."
@@ -213,7 +184,6 @@ authenticate_gh() {
     info "No token provided; will try manual login if possible."
   fi
 
-  # Fallback: interactive wizard if possible.
   if is_tty && [[ -z "${CI:-}" ]]; then
     info "Starting interactive 'gh auth login' wizard"
     if gh auth login --hostname "${GH_HOST}" --git-protocol https; then

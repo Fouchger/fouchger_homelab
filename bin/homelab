@@ -1,54 +1,14 @@
 #!/usr/bin/env bash
-# -----------------------------------------------------------------------------
 # Filename: bin/homelab
-# Created : 2026-01-23
-# Updated : 2026-01-23
-# Description: fouchger_homelab interactive CLI entrypoint.
-# Usage:
-#   make menu
-#
-# Developer notes:
-#   - Keep this as a thin orchestrator.
-#   - Menu routing lives in lib/menu.sh
-#   - UI is standardised via lib/ui.sh (dialog only).
-#   - Operational orchestration lives in lib/actions.sh
-# -----------------------------------------------------------------------------
+# Description: Interactive CLI entrypoint for fouchger_homelab.
 
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# -----------------------------------------------------------------------------
-# Purpose: Resolve repository root by locating the .git directory
-# Notes:
-#   - Works from any subdirectory within the repo
-#   - Fails fast if not executed inside a git repository
-# -----------------------------------------------------------------------------
-
-set -Eeuo pipefail
-
-find_repo_root() {
-  local dir
-  dir="$(pwd)"
-
-  while [[ "$dir" != "/" ]]; do
-    if [[ -d "$dir/.git" ]]; then
-      echo "$dir"
-      return 0
-    fi
-    dir="$(dirname "$dir")"
-  done
-
-  return 1
-}
-
-if ! REPO_ROOT="$(find_repo_root)"; then
-  echo "Error: not inside a Git repository (.git not found)" >&2
-  exit 1
-fi
-
+# Anchor off this file so the menu works even when the repo is installed without a .git directory.
+REPO_ROOT="${REPO_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)}"
 export REPO_ROOT
 
-# source modules
 # shellcheck source=lib/modules.sh
 source "${REPO_ROOT}/lib/modules.sh"
 homelab_load_lib

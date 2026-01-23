@@ -25,4 +25,5 @@ terraform/*.tfstate*
 **/secrets.yaml
 **/secrets.yml
 # Local-only files
-.local/
+.local/.homelab_repo_root
+.homelab_repo_root

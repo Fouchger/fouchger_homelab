@@ -37,9 +37,10 @@ state_set() {
 
   if grep -qE "^${nkey}=" "$STATE_FILE"; then
     # Portable in-place edit.
+    # NOTE: Preserve values containing '=' by replacing the whole line.
     local tmpfile
     tmpfile="${STATE_FILE}.tmp"
-    awk -v k="$nkey" -v v="$value" 'BEGIN{FS=OFS="="} {if($1==k){$2=v} print}' "$STATE_FILE" >"$tmpfile"
+    awk -v k="$nkey" -v v="$value" 'index($0, k"=") == 1 { print k"="v; next } { print }' "$STATE_FILE" >"$tmpfile"
     mv "$tmpfile" "$STATE_FILE"
   else
     printf '%s=%s\n' "$nkey" "$value" >>"$STATE_FILE"

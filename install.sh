@@ -43,10 +43,24 @@ HOMELAB_NO_RUN="${HOMELAB_NO_RUN:-0}"
 # --------------------------------- Helpers -----------------------------------
 
 log()  { printf '%s\n' "$*"; }
+info() { log "$*"; }
 warn() { printf 'Warning: %s\n' "$*" >&2; }
 die()  { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+is_root() { [[ "${EUID:-$(id -u)}" -eq 0 ]]; }
+
+require_sudo() {
+  if is_root; then
+    return 0
+  fi
+  if ! have_cmd sudo; then
+    die "sudo is required but not installed. Install sudo or run as root."
+  fi
+  sudo -v
+}
 
 on_err() {
   local exit_code=$?
@@ -76,8 +90,6 @@ have_sudo() {
 #   - Falls back to apt-get if nala cannot be used.
 # Notes:
 #   - Uses sudo only when not running as root.
-#   - Requires lib/logging.sh for info/warn/error helpers.
-#   - Requires lib/core.sh helpers: require_sudo, have_cmd, is_debian_like, is_root.
 # -----------------------------------------------------------------------------
 apt_install() {
   local -a pkgs
@@ -132,7 +144,6 @@ apt_install() {
       ;;
   esac
 }
-
 
 ensure_deps() {
   # Keep this minimal: only what install.sh strictly needs.
@@ -191,6 +202,12 @@ post_clone_fixups() {
       find scripts -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
     fi
   fi
+
+  # Set REPO_ROOT
+  # shellcheck source=lib/common.sh
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
+  resolve_repo_root || homelab_die "not inside the homelab repository"
+
 }
 
 run_entry() {
@@ -211,20 +228,6 @@ run_entry() {
 
   log "Running: ${HOMELAB_ENTRY}"
 
-  # NOTE:
-  #   This installer sets IFS to newline+tab globally for safer bash.
-  #   As a side effect, a string like "make menu" will NOT split on spaces
-  #   when executed as: ${HOMELAB_ENTRY}. Bash then looks for a literal
-  #   command named "make menu" and fails.
-  #
-  # Approach:
-  #   Parse HOMELAB_ENTRY into an argv-style array using a local IFS that
-  #   includes spaces, then execute the array.
-  #
-  # Limitation:
-  #   Simple splitting is used; complex quoting in HOMELAB_ENTRY is not
-  #   supported. For advanced usage, set HOMELAB_ENTRY to a single command,
-  #   e.g. "bash" and pass args via another wrapper script.
   local -a entry_cmd=()
   local entry_ifs=$IFS
   IFS=$' \t\n'
@@ -238,7 +241,6 @@ run_entry() {
 
   "${entry_cmd[@]}"
 }
-
 
 # ---------------------------------- Main -------------------------------------
 
