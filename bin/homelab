@@ -17,8 +17,37 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-echo "$REPO_ROOT"
+# -----------------------------------------------------------------------------
+# Purpose: Resolve repository root by locating the .git directory
+# Notes:
+#   - Works from any subdirectory within the repo
+#   - Fails fast if not executed inside a git repository
+# -----------------------------------------------------------------------------
+
+set -Eeuo pipefail
+
+find_repo_root() {
+  local dir
+  dir="$(pwd)"
+
+  while [[ "$dir" != "/" ]]; do
+    if [[ -d "$dir/.git" ]]; then
+      echo "$dir"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+
+  return 1
+}
+
+if ! REPO_ROOT="$(find_repo_root)"; then
+  echo "Error: not inside a Git repository (.git not found)" >&2
+  exit 1
+fi
+
+export REPO_ROOT
+
 # source modules
 # shellcheck source=lib/modules.sh
 source "${REPO_ROOT}/lib/modules.sh"

@@ -11,22 +11,27 @@
 
 set -Eeuo pipefail
 
-# Resolve repository root even when called via symlink or outside git.
-get_repo_root() {
-  local script_dir
-  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+find_repo_root() {
+  local dir
+  dir="$(pwd)"
 
-  if command -v git >/dev/null 2>&1; then
-    if git_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)"; then
-      printf '%s' "$git_root"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -d "$dir/.git" ]]; then
+      echo "$dir"
       return 0
     fi
-  fi
+    dir="$(dirname "$dir")"
+  done
 
-  # Fallback: assume lib/ is directly under repo root.
-  printf '%s' "$(cd -- "$script_dir/.." && pwd -P)"
+  return 1
 }
 
-REPO_ROOT="$(get_repo_root)"
+if ! REPO_ROOT="$(find_repo_root)"; then
+  echo "Error: not inside a Git repository (.git not found)" >&2
+  exit 1
+fi
+
+export REPO_ROOT
+
 STATE_DIR_DEFAULT="${STATE_DIR_DEFAULT:-$HOME/.config/fouchger_homelab}"
 LOG_DIR_DEFAULT="${LOG_DIR_DEFAULT:-$STATE_DIR_DEFAULT/logs}"

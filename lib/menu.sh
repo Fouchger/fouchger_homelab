@@ -11,6 +11,10 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+if [[ -z "${REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fi
+
 #-----------------------------------------------------------------------------
 # Sub Menu Setup
 #-----------------------------------------------------------------------------
@@ -104,11 +108,11 @@ main_menu() {
   while true; do
     local choice=""
     ui_menu "Fouchger_Homelab" "Choose an action:" choice \
-      1. "Git & Github Management" \
-      2. "Bootstrap Development Server (admin01)" \
-      3. "Infrastructure (Plasceholder)" \
-      4. "Workflows (Plasceholder)" \
-      6. Exit
+      1 "Git & Github Management" \
+      2 "Bootstrap Development Server (admin01)" \
+      3 "Infrastructure (Plasceholder)" \
+      4 "Workflows (Plasceholder)" \
+      6 Exit
 
 
     [[ -n "${choice}" ]] || break

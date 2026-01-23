@@ -67,16 +67,72 @@ have_sudo() {
   need_cmd sudo
 }
 
+# -----------------------------------------------------------------------------
+# Function: apt_install
+# Description:
+#   Installs packages on Debian-like systems.
+#   - Prefers nala for better UX and performance.
+#   - Automatically installs nala if not present.
+#   - Falls back to apt-get if nala cannot be used.
+# Notes:
+#   - Uses sudo only when not running as root.
+#   - Requires lib/logging.sh for info/warn/error helpers.
+#   - Requires lib/core.sh helpers: require_sudo, have_cmd, is_debian_like, is_root.
+# -----------------------------------------------------------------------------
 apt_install() {
-  local -a pkgs=("$@")
+  local -a pkgs
+  local installer
+  local -a run_cmd
 
-  need_cmd apt-get || die "apt-get not found. This installer currently supports Debian-like systems only."
-  have_sudo || die "sudo not found. Install sudo or run as a user with package install rights."
+  pkgs=("$@")
 
-  log "Installing dependencies via apt-get: ${pkgs[*]}"
-  sudo apt-get update -y
-  sudo apt-get install -y "${pkgs[@]}"
+  # No-op if nothing to install
+  if [ "${#pkgs[@]}" -eq 0 ]; then
+    warn "apt_install called with no packages. Skipping."
+    return 0
+  fi
+
+  # Decide privilege wrapper
+  if is_root; then
+    run_cmd=()
+  else
+    require_sudo
+    run_cmd=(sudo)
+  fi
+
+  if ! is_debian_like; then
+    warn "apt_install called on non-Debian system. Skipping: ${pkgs[*]}"
+    return 0
+  fi
+
+  # Decide installer
+  if have_cmd nala; then
+    installer="nala"
+  else
+    info "nala not found. Installing nala using apt-get."
+    "${run_cmd[@]}" apt-get update -y
+    if "${run_cmd[@]}" apt-get install -y --no-install-recommends nala; then
+      installer="nala"
+    else
+      warn "Failed to install nala. Falling back to apt-get."
+      installer="apt-get"
+    fi
+  fi
+
+  info "Installing packages using ${installer}: ${pkgs[*]}"
+
+  case "$installer" in
+    nala)
+      "${run_cmd[@]}" nala update
+      "${run_cmd[@]}" nala install -y --no-install-recommends "${pkgs[@]}"
+      ;;
+    apt-get)
+      "${run_cmd[@]}" apt-get update -y
+      "${run_cmd[@]}" apt-get install -y --no-install-recommends "${pkgs[@]}"
+      ;;
+  esac
 }
+
 
 ensure_deps() {
   # Keep this minimal: only what install.sh strictly needs.
@@ -154,10 +210,35 @@ run_entry() {
   fi
 
   log "Running: ${HOMELAB_ENTRY}"
-  # Intentionally allow word-splitting for command-style entry.
-  # shellcheck disable=SC2086
-  ${HOMELAB_ENTRY}
+
+  # NOTE:
+  #   This installer sets IFS to newline+tab globally for safer bash.
+  #   As a side effect, a string like "make menu" will NOT split on spaces
+  #   when executed as: ${HOMELAB_ENTRY}. Bash then looks for a literal
+  #   command named "make menu" and fails.
+  #
+  # Approach:
+  #   Parse HOMELAB_ENTRY into an argv-style array using a local IFS that
+  #   includes spaces, then execute the array.
+  #
+  # Limitation:
+  #   Simple splitting is used; complex quoting in HOMELAB_ENTRY is not
+  #   supported. For advanced usage, set HOMELAB_ENTRY to a single command,
+  #   e.g. "bash" and pass args via another wrapper script.
+  local -a entry_cmd=()
+  local entry_ifs=$IFS
+  IFS=$' \t\n'
+  # shellcheck disable=SC2206
+  entry_cmd=(${HOMELAB_ENTRY})
+  IFS=$entry_ifs
+
+  if ((${#entry_cmd[@]} == 0)); then
+    die "HOMELAB_ENTRY is empty."
+  fi
+
+  "${entry_cmd[@]}"
 }
+
 
 # ---------------------------------- Main -------------------------------------
 

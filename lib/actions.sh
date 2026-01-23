@@ -14,7 +14,7 @@
 
 set -Eeuo pipefail
 IFS=$'\n\t'
-
+echo "lib/actions.sh - print 1"
 # REPO_ROOT is defined in bin/homelab before sourcing this file.
 : "${REPO_ROOT:?REPO_ROOT must be set before sourcing lib/actions.sh}"
 
@@ -34,8 +34,8 @@ require_function() {
   return 0
 }
 
-# Load optional modules once at import time
-homelab_load_modules
+# # Load optional modules once at import time
+# homelab_load_modules
 
 # -----------------------------------------------------------------------------
 # Action wrappers called by menus
@@ -70,3 +70,5 @@ action_open_app_manager() {
   fi
   app_manager_menu
 }
+
+echo "lib/actions.sh - print 2"

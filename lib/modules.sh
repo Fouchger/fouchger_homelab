@@ -13,6 +13,19 @@
 set -Eeuo pipefail
 
 # -----------------------------------------------------------------------------
+# Ensure REPO_ROOT is defined even when caller didn't set it.
+# We anchor off this file's location: <repo>/lib/modules.sh -> <repo>
+# -----------------------------------------------------------------------------
+if [[ -z "${REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fi
+
+source_if_exists() {
+  local f="$1"
+  [[ -f "${f}" ]] && source "${f}"
+}
+
+# -----------------------------------------------------------------------------
 # load lib all at once
 # -----------------------------------------------------------------------------
 homelab_load_lib() {
@@ -45,10 +58,11 @@ homelab_load_lib() {
 homelab_load_modules() {
   # Optional: source feature menus / workflows (best-effort)
   # If a file is missing, we skip it without failing.
-  source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
-  source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
-  source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
-  source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
-  source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
+  echo "lib/modules.sh - function homelab_load_modules - no modules exist yet"
+  # source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
+  # source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
+  # source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
+  # source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
+  # source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
 }
 
