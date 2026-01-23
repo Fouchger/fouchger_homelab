@@ -22,7 +22,6 @@
 
 set -Eeuo pipefail
 IFS=$'\n\t'
-echo "lib/dev-auth.sh - print 1"
 
 # -----------------------------------------------------------------------------
 # Purpose: Resolve repository root by locating the .git directory

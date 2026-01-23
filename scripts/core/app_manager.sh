@@ -32,14 +32,10 @@ IFS=$'\n\t'
 # =============================================================================
 # Paths and constants
 # =============================================================================
-APPM_DIR="${STATE_DIR_DEFAULT}/lxc_app_manager"
-ENV_FILE="${APPM_DIR}/app_install_list.env"
-ENV_BACKUP_DIR="${APPM_DIR}/.backups"
-LOG_FILE="${APPM_DIR}/app-manager.log"
+# see lib/paths.sh for folders
 
-STATE_DIR="/usr/local/share/ubuntu-lxc-app-manager"
-MARKER_DIR="${STATE_DIR}/markers"
-BIN_DIR="/usr/local/bin"
+ENV_FILE="${APPM_DIR}/app_install_list.env"
+LOG_FILE="${APPM_DIR}/app-manager.log"
 
 # =============================================================================
 # Version pinning defaults (can be overridden by env file or exported env vars)
@@ -493,8 +489,11 @@ detect_pkg_mgr() { if need_cmd_quiet nala; then PKG_MGR="nala"; else PKG_MGR="ap
 ensure_pkg_mgr() {
   detect_pkg_mgr
   if [[ "${PKG_MGR}" == "nala" ]]; then return 0; fi
+
   log_line "nala not found; bootstrapping via apt-get"
-  apt_install nala || true
+  as_root apt-get update
+  as_root apt-get install -y --no-install-recommends nala || true
+
   detect_pkg_mgr
 }
 
@@ -529,7 +528,8 @@ pkg_autoremove() {
 # =============================================================================
 ensure_hashicorp_repo() {
   if ! need_cmd_quiet curl || ! need_cmd_quiet gpg; then
-    apt_install ca-certificates curl gnupg
+    pkg_update_once
+    pkg_install_pkgs ca-certificates curl gnupg
   fi
 
   local keyring="/usr/share/keyrings/hashicorp-archive-keyring.gpg"

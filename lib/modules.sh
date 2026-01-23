@@ -58,11 +58,11 @@ homelab_load_lib() {
 homelab_load_modules() {
   # Optional: source feature menus / workflows (best-effort)
   # If a file is missing, we skip it without failing.
-  echo "lib/modules.sh - function homelab_load_modules - no modules exist yet"
+  source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
   # source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
   # source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
   # source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
   # source_if_exists "${REPO_ROOT}/scripts/dns/menu.sh"
-  # source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
+  
 }
 

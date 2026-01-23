@@ -141,8 +141,3 @@ apt_install() {
   esac
 }
 
-
-# Creates default directories used by the project.
-ensure_dirs() {
-  mkdir -p "$LOG_DIR_DEFAULT" "$STATE_DIR_DEFAULT"
-}
