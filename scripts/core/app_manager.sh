@@ -46,6 +46,18 @@ VAULT_VERSION="${VAULT_VERSION:-latest}"
 HELM_VERSION="${HELM_VERSION:-latest}"
 KUBECTL_VERSION="${KUBECTL_VERSION:-latest}"
 
+# NOTE: Node is installed via NVM (per-user), not NodeSource APT.
+# Keep this var for compatibility if you previously persisted it, but it's not
+# used by the NVM installer. Prefer NVM_NODE_VERSION for pinning instead.
+NODESOURCE_NODE_MAJOR="${NODESOURCE_NODE_MAJOR:-22}"
+
+# NEW: MongoDB major.minor line (MongoDB repo line differs by series)
+MONGODB_SERIES="${MONGODB_SERIES:-8.0}"
+
+# NEW: yq + sops pinning (optional; latest if unset)
+YQ_VERSION="${YQ_VERSION:-latest}"
+SOPS_VERSION="${SOPS_VERSION:-latest}"
+
 # Default Python target: system (stable baseline).
 PYTHON_TARGET="${PYTHON_TARGET:-system}"                 # system | pyenv | 3.13 | 3.13.1 | 3.14 ...
 PYENV_PYTHON_VERSION="${PYENV_PYTHON_VERSION:-3.13.1}"   # used when PYTHON_TARGET=pyenv
@@ -78,9 +90,14 @@ APP_CATALOGUE=(
   "APP|make|[Build] make|OFF|make|Build automation|apt|"
   "APP|cmake|[Build] cmake|OFF|cmake|Modern build system|apt|"
   "APP|git|[Build] git|ON|git|Source control|apt|"
-  "APP|gh|[Build] gh (GitHub CLI)|ON|gh|GitHub CLI tool|apt|"
+  "APP|gh|[Build] gh (GitHub CLI)|ON|gh|GitHub CLI tool|github_cli_repo|"
   "APP|python|[Build] Python tooling (versioned)|OFF|python3,python3-venv,pipx|Python runtime and tooling|python|PYTHON_TARGET"
-  "APP|nodejs|[Build] Node.js (distro)|OFF|nodejs,npm|Node.js runtime|apt|"
+
+  # CORRECTION: This installer is NVM-based (per-user). Label + strategy renamed accordingly.
+  # Packages remain empty because NVM installs Node without system packages.
+  # Pin using NVM_NODE_VERSION (e.g. lts/*, v22.16.0) rather than NODESOURCE_NODE_MAJOR.
+  "APP|nodejs|[Build] Node.js (NVM)|OFF||Node.js runtime installed via NVM (per-user)|nvm|"
+
   "APP|openjdk|[Build] OpenJDK 17|OFF|openjdk-17-jdk|Java runtime|apt|"
   "APP|golang|[Build] Go|OFF|golang-go|Go language toolchain|apt|"
 
@@ -92,7 +109,7 @@ APP_CATALOGUE=(
   "APP|helm|[Infra] Helm (binary)|OFF||Kubernetes package manager|binary|HELM_VERSION"
   "APP|kubectl|[Infra] kubectl (binary)|OFF||Kubernetes CLI|binary|KUBECTL_VERSION"
   "APP|jq|[Infra] jq|ON|jq|JSON processor|apt|"
-  "APP|yq|[Infra] yq|OFF|yq|YAML processor|apt|"
+  "APP|yq|[Infra] yq (mikefarah, binary)|OFF||YAML processor|yq_binary|YQ_VERSION"
 
   "BLANK| "
   "HEADING|4. Containers and Platform Engineering (CLI only)"
@@ -106,7 +123,7 @@ APP_CATALOGUE=(
   "APP|mysql|[Data] MySQL|OFF|mysql-server|Relational database|apt|"
   "APP|mariadb|[Data] MariaDB|OFF|mariadb-server|MySQL-compatible database|apt|"
   "APP|redis|[Data] Redis|OFF|redis-server|In-memory datastore|apt|"
-  "APP|mongodb|[Data] MongoDB (distro)|OFF|mongodb|Document database (Ubuntu repo packaging varies)|apt|"
+  "APP|mongodb|[Data] MongoDB Community (mongodb-org)|OFF|mongodb-org|Document database via MongoDB repo|mongodb_repo|MONGODB_SERIES"
 
   "BLANK| "
   "HEADING|6. Observability and Diagnostics"
@@ -114,7 +131,7 @@ APP_CATALOGUE=(
   "APP|iproute2|[Obs] iproute2|ON|iproute2|Modern networking tools|apt|"
   "APP|tcpdump|[Obs] tcpdump|OFF|tcpdump|Packet capture|apt|"
   "APP|strace|[Obs] strace|OFF|strace|Syscall tracing|apt|"
-  "APP|grafana_agent|[Obs] Grafana Agent|OFF|grafana-agent|Telemetry agent (availability depends on repo)|apt|"
+  "APP|grafana_alloy|[Obs] Grafana Alloy|OFF|alloy|OpenTelemetry collector distro (Grafana)|grafana_repo|"
 
   "BLANK| "
   "HEADING|7. Security and Access Tooling"
@@ -122,19 +139,18 @@ APP_CATALOGUE=(
   "APP|pass|[Sec] pass|OFF|pass|Password store|apt|"
   "APP|vault|[Sec] Vault CLI|OFF|vault|Secrets management|hashicorp_repo|VAULT_VERSION"
   "APP|age|[Sec] age|OFF|age|Modern encryption|apt|"
-  "APP|sops|[Sec] sops|OFF|sops|Secrets operations|apt|"
+  "APP|sops|[Sec] sops (binary)|OFF||Secrets operations|sops_binary|SOPS_VERSION"
 )
 
 # =============================================================================
 # Profiles (apps)
 # =============================================================================
 PROFILE_BASIC_KEYS=(openssh sudo curl wget rsync tmux htop btop chrony logrotate jq iproute2 gpg git gh)
-
 PROFILE_DEV_KEYS=( "${PROFILE_BASIC_KEYS[@]}" build_essential make cmake python nodejs openjdk golang )
 PROFILE_AUTOMATION_KEYS=( "${PROFILE_BASIC_KEYS[@]}" ansible terraform packer yq )
 PROFILE_PLATFORM_KEYS=( "${PROFILE_AUTOMATION_KEYS[@]}" helm kubectl docker_cli podman_cli docker_compose tcpdump strace )
 PROFILE_DATABASE_KEYS=( "${PROFILE_BASIC_KEYS[@]}" postgres mysql mariadb redis mongodb )
-PROFILE_OBSERVABILITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" nettools grafana_agent )
+PROFILE_OBSERVABILITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" nettools grafana_alloy )
 PROFILE_SECURITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" pass vault age sops )
 
 profile_all_keys_unique() {
@@ -154,7 +170,6 @@ mapfile -t PROFILE_ALL_KEYS < <(profile_all_keys_unique)
 # Profiles (version pinning)
 # =============================================================================
 PROFILE_BASIC_VERSION_LINES=()
-
 PROFILE_DEV_VERSION_LINES=( "PYTHON_TARGET=system" "PYENV_PYTHON_VERSION=3.13.1" )
 PROFILE_AUTOMATION_VERSION_LINES=( "TERRAFORM_VERSION=latest" "PACKER_VERSION=latest" "VAULT_VERSION=latest" )
 PROFILE_PLATFORM_VERSION_LINES=(
@@ -220,6 +235,10 @@ known_version_vars() {
     "VAULT_VERSION" \
     "HELM_VERSION" \
     "KUBECTL_VERSION" \
+    "NODESOURCE_NODE_MAJOR" \
+    "MONGODB_SERIES" \
+    "YQ_VERSION" \
+    "SOPS_VERSION" \
     "PYTHON_TARGET" \
     "PYENV_PYTHON_VERSION"
 }
@@ -229,9 +248,14 @@ default_for_version_var() {
   case "${var}" in
     PYTHON_TARGET) printf '%s' "${PYTHON_TARGET:-system}" ;;
     PYENV_PYTHON_VERSION) printf '%s' "${PYENV_PYTHON_VERSION:-3.13.1}" ;;
+    NODESOURCE_NODE_MAJOR) printf '%s' "${NODESOURCE_NODE_MAJOR:-22}" ;;
+    MONGODB_SERIES) printf '%s' "${MONGODB_SERIES:-8.0}" ;;
+    YQ_VERSION) printf '%s' "${YQ_VERSION:-latest}" ;;
+    SOPS_VERSION) printf '%s' "${SOPS_VERSION:-latest}" ;;
     *) printf '%s' "${!var:-latest}" ;;
   esac
 }
+
 
 profile_version_lines_for_name() {
   local name="$1"
@@ -365,6 +389,10 @@ write_default_env_if_missing() {
     echo "KUBECTL_VERSION=${KUBECTL_VERSION}"
     echo "PYTHON_TARGET=${PYTHON_TARGET}"
     echo "PYENV_PYTHON_VERSION=${PYENV_PYTHON_VERSION}"
+    echo "NODESOURCE_NODE_MAJOR=${NODESOURCE_NODE_MAJOR}"
+    echo "MONGODB_SERIES=${MONGODB_SERIES}"
+    echo "YQ_VERSION=${YQ_VERSION}"
+    echo "SOPS_VERSION=${SOPS_VERSION}"
     echo
     local row type key label def pkgs_csv desc strategy version_var v
     for row in "${APP_CATALOGUE[@]}"; do
@@ -562,6 +590,383 @@ pkg_autoremove() {
   fi
 }
 
+ensure_nodesource_repo() {
+  # =============================================================================
+  # Install Node.js via NVM (Node Version Manager) for the invoking user.
+  #
+  # Why:
+  #   - More flexible than apt repos: multiple Node versions per user, easy upgrades.
+  #   - Matches the recommended NVM install approach (download install.sh, then run).
+  #
+  # Behaviour:
+  #   - Installs nvm under the target user's home (~/.nvm)
+  #   - Installs a Node version (default: lts/*) and sets it as default alias
+  #
+  # Controls (env vars):
+  #   - NVM_VERSION:        nvm version tag (default: latest release tag, e.g. v0.40.3)
+  #   - NVM_NODE_VERSION:   Node version or alias (default: lts/*, examples: v22.16.0, lts/jod)
+  #   - NVM_AUDIT_ONLY=1:   Downloads install script and stops (lets you review before running)
+  # =============================================================================
+
+  pkg_update_once
+  pkg_install_pkgs ca-certificates curl bash
+
+  local nvm_version="${NVM_VERSION:-latest}"
+  local node_version="${NVM_NODE_VERSION:-lts/*}"
+
+  # Resolve "latest" to the latest release tag (e.g. v0.40.3)
+  if [[ "${nvm_version}" == "latest" ]]; then
+    # github_latest_tag strips leading 'v', so we add it back for the URL.
+    local resolved
+    resolved="$(github_latest_tag "nvm-sh/nvm" 2>/dev/null || true)"
+    [[ -n "${resolved}" ]] || { ui_msgbox "Error" "Could not resolve latest nvm version from GitHub."; return 1; }
+    nvm_version="v${resolved}"
+  fi
+
+  # Decide who gets NVM installed (per-user install)
+  local target_user target_home
+  target_user="${SUDO_USER:-$USER}"
+  target_home="$(getent passwd "${target_user}" | cut -d: -f6)"
+  [[ -n "${target_home}" && -d "${target_home}" ]] || { ui_msgbox "Error" "Could not determine home directory for user '${target_user}'."; return 1; }
+
+  local td script_url script
+  td="$(tmpdir_create)"
+  script="${td}/nvm-install.sh"
+  script_url="https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh"
+
+  info "Preparing NVM install script: ${script_url}"
+  curl -fsSL "${script_url}" -o "${script}"
+
+  if [[ "${NVM_AUDIT_ONLY:-0}" == "1" ]]; then
+    ui_msgbox "NVM audit-only" "Downloaded NVM install script to:\n\n${script}\n\nReview it, then re-run with NVM_AUDIT_ONLY=0 to install."
+    return 0
+  fi
+
+  # Run installer as the target user (writes to ~/.nvm and updates shell profile)
+  info "Installing NVM for user '${target_user}' (${nvm_version})"
+  sudo -u "${target_user}" bash "${script}"
+
+  # Install and set the default Node version (also as the target user)
+  info "Installing Node via NVM (${node_version}) and setting default alias"
+  sudo -u "${target_user}" bash -lc "
+    set -euo pipefail
+
+    export NVM_DIR=\"\$HOME/.nvm\"
+    if [[ -s \"\$NVM_DIR/nvm.sh\" ]]; then
+      . \"\$NVM_DIR/nvm.sh\"
+    else
+      echo \"Error: nvm.sh not found after install\" >&2
+      exit 1
+    fi
+
+    nvm install \"${node_version}\"
+    nvm alias default \"${node_version}\"
+
+    node -v
+    npm -v
+  "
+
+  rm -rf -- "${td}"
+}
+
+uninstall_nvm_node() {
+  # =============================================================================
+  # Uninstall NVM + Node versions installed by NVM for the target user.
+  #
+  # Notes:
+  #   - This removes ~/.nvm and attempts to remove NVM init lines from ~/.bashrc.
+  #   - It does not remove system-installed nodejs packages.
+  # =============================================================================
+  local target_user target_home
+  target_user="${SUDO_USER:-$USER}"
+  target_home="$(getent passwd "${target_user}" | cut -d: -f6)"
+  [[ -n "${target_home}" && -d "${target_home}" ]] || return 0
+
+  sudo -u "${target_user}" bash -lc '
+    set -euo pipefail
+    rm -rf "$HOME/.nvm" || true
+    touch "$HOME/.bashrc" || true
+    # Remove common NVM install snippet lines (best-effort)
+    sed -i "/NVM_DIR=.*\.nvm/d" "$HOME/.bashrc" || true
+    sed -i "/nvm\.sh/d" "$HOME/.bashrc" || true
+    sed -i "/bash_completion.*nvm/d" "$HOME/.bashrc" || true
+  ' || true
+
+  if is_marked_installed "nodejs"; then
+    unmark_installed "nodejs"
+  fi
+}
+
+# =============================================================================
+# Vendor repo helpers (NEW)
+# =============================================================================
+
+ensure_apt_keyrings_dir() { as_root mkdir -p /etc/apt/keyrings; }
+
+# GitHub CLI APT repo (packages at cli.github.com)
+ensure_github_cli_repo() {
+  pkg_update_once
+  pkg_install_pkgs ca-certificates curl gpg
+
+  ensure_apt_keyrings_dir
+  local keyring="/etc/apt/keyrings/githubcli-archive-keyring.gpg"
+  if [[ ! -f "${keyring}" ]]; then
+    as_root curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o "${keyring}"
+    as_root chmod 0644 "${keyring}"
+  fi
+
+  local list="/etc/apt/sources.list.d/github-cli.list"
+  local line="deb [arch=$(dpkg --print-architecture) signed-by=${keyring}] https://cli.github.com/packages stable main"
+  if [[ ! -f "${list}" ]] || ! grep -Fq "${line}" "${list}"; then
+    printf '%s\n' "${line}" | as_root tee "${list}" >/dev/null
+  fi
+}
+
+ensure_mongodb_repo() {
+  # =============================================================================
+  # MongoDB official repo (mongodb-org) for Ubuntu 24.04+ (noble by default)
+  #
+  # Based on:
+  #   curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+  #   echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+  #
+  # Notes:
+  #   - MongoDB warns that Ubuntu’s 'mongodb' package conflicts with mongodb-org.
+  # =============================================================================
+
+  local series="${MONGODB_SERIES:-8.0}"
+  local codename
+  codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+  [[ -n "${codename}" ]] || { ui_msgbox "Error" "Could not determine OS codename for MongoDB repo setup."; return 1; }
+
+  if ! need_cmd_quiet curl || ! need_cmd_quiet gpg; then
+    pkg_update_once
+    pkg_install_pkgs ca-certificates curl gpg
+  fi
+
+  local keyring="/usr/share/keyrings/mongodb-server-${series}.gpg"
+  local list="/etc/apt/sources.list.d/mongodb-org-${series}.list"
+
+  if [[ ! -f "${keyring}" ]]; then
+    as_root bash -c "curl -fsSL https://www.mongodb.org/static/pgp/server-${series}.asc | gpg --dearmor -o '${keyring}'"
+    as_root chmod 0644 "${keyring}"
+  fi
+
+  local line="deb [ arch=amd64,arm64 signed-by=${keyring} ] https://repo.mongodb.org/apt/ubuntu ${codename}/mongodb-org/${series} multiverse"
+  if [[ ! -f "${list}" ]] || ! grep -Fq "${line}" "${list}"; then
+    printf '%s\n' "${line}" | as_root tee "${list}" >/dev/null
+  fi
+}
+
+ensure_grafana_repo() {
+  # =============================================================================
+  # Grafana APT repo for Alloy (Debian/Ubuntu)
+  #
+  # Based on Grafana Alloy docs:
+  #   sudo mkdir -p /etc/apt/keyrings
+  #   sudo wget -O /etc/apt/keyrings/grafana.asc https://apt.grafana.com/gpg-full.key
+  #   sudo chmod 644 /etc/apt/keyrings/grafana.asc
+  #   echo "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+  #
+  # Notes:
+  #   - Some Debian-based images may not have gpg; the referenced docs mention installing it.
+  #     This repo method uses a raw ASCII key file, but we still ensure gpg is present to
+  #     support other repo patterns and consistency.
+  # =============================================================================
+
+  pkg_update_once
+  pkg_install_pkgs ca-certificates wget gpg || true
+
+  local keyrings_dir="/etc/apt/keyrings"
+  local keyfile="${keyrings_dir}/grafana.asc"
+  local list="/etc/apt/sources.list.d/grafana.list"
+  local line="deb [signed-by=${keyfile}] https://apt.grafana.com stable main"
+
+  as_root mkdir -p "${keyrings_dir}"
+
+  if [[ ! -f "${keyfile}" ]]; then
+    as_root wget -qO "${keyfile}" https://apt.grafana.com/gpg-full.key
+    as_root chmod 0644 "${keyfile}"
+  else
+    # Keep permissions correct if file already exists
+    as_root chmod 0644 "${keyfile}" || true
+  fi
+
+  if [[ ! -f "${list}" ]] || ! grep -Fq "${line}" "${list}"; then
+    printf '%s\n' "${line}" | as_root tee "${list}" >/dev/null
+  fi
+}
+
+uninstall_grafana_alloy() {
+  # =============================================================================
+  # Uninstall Grafana Alloy (Debian/Ubuntu) + optional repo cleanup
+  #
+  # Based on Grafana Alloy docs:
+  #   sudo systemctl stop alloy
+  #   sudo apt-get remove alloy
+  #   optional: sudo rm -i /etc/apt/sources.list.d/grafana.list
+  #
+  # Controls (env vars):
+  #   - REMOVE_GRAFANA_REPO=1    Remove /etc/apt/sources.list.d/grafana.list
+  #   - REMOVE_GRAFANA_KEY=1     Remove /etc/apt/keyrings/grafana.asc
+  # =============================================================================
+
+  # Stop service if systemd is present (best-effort)
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    as_root systemctl stop alloy >/dev/null 2>&1 || true
+    as_root systemctl disable alloy >/dev/null 2>&1 || true
+  fi
+
+  # Remove package
+  pkg_update_once
+  pkg_remove_pkgs alloy || true
+  pkg_autoremove || true
+
+  # Optional: remove repo + key (non-destructive by default)
+  if [[ "${REMOVE_GRAFANA_REPO:-0}" == "1" ]]; then
+    as_root rm -f /etc/apt/sources.list.d/grafana.list || true
+  fi
+  if [[ "${REMOVE_GRAFANA_KEY:-0}" == "1" ]]; then
+    as_root rm -f /etc/apt/keyrings/grafana.asc || true
+  fi
+
+  # Refresh apt metadata if we changed sources
+  if [[ "${REMOVE_GRAFANA_REPO:-0}" == "1" || "${REMOVE_GRAFANA_KEY:-0}" == "1" ]]; then
+    pkg_update_once || true
+  fi
+}
+
+install_sops_binary() {
+  # =============================================================================
+  # Install sops from GitHub release artifacts (getsops/sops)
+  #
+  # Based on the release instructions:
+  #   curl -LO .../sops-vX.Y.Z.linux.amd64
+  #   mv ... /usr/local/bin/sops
+  #   chmod +x ...
+  #
+  # Controls (env vars):
+  #   - SOPS_VERSION: latest | 3.11.0 | v3.11.0
+  #   - SOPS_VERIFY:  0|1  (default: 1) verify binary integrity via checksums + sha256sum
+  #   - SOPS_COSIGN_VERIFY: 0|1 (default: 0) verify checksums file signature with cosign
+  #
+  # Notes:
+  #   - Installs to ${BIN_DIR}/sops (project standard).
+  #   - Verification is best-effort; fails hard when SOPS_VERIFY=1 and checks fail.
+  # =============================================================================
+
+  local version="${SOPS_VERSION:-latest}"
+  version="${version#v}"
+
+  if [[ "${version}" == "latest" ]]; then
+    local resolved
+    resolved="$(github_latest_tag "getsops/sops" 2>/dev/null || true)"
+    [[ -n "${resolved}" ]] || { ui_msgbox "Error" "Could not resolve latest sops version."; return 1; }
+    version="${resolved}"
+  fi
+
+  local os="linux"
+  local arch
+  case "$(uname -m)" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) ui_msgbox "Error" "Unsupported architecture for sops: $(uname -m)"; return 1 ;;
+  esac
+
+  ensure_state_dirs
+
+  # Ensure downloader exists
+  if ! need_cmd_quiet curl; then
+    pkg_update_once
+    pkg_install_pkgs ca-certificates curl
+  fi
+
+  local td asset url bin
+  td="$(tmpdir_create)"
+  asset="sops-v${version}.${os}.${arch}"
+  url="https://github.com/getsops/sops/releases/download/v${version}/${asset}"
+  bin="${td}/${asset}"
+
+  info "Downloading sops v${version} (${os}/${arch})"
+  curl -fsSL -o "${bin}" "${url}"
+  [[ -s "${bin}" ]] || { ui_msgbox "Error" "Downloaded sops binary is empty. URL: ${url}"; rm -rf -- "${td}"; return 1; }
+
+  # Optional: verify checksums (recommended)
+  local verify="${SOPS_VERIFY:-1}"
+  if [[ "${verify}" == "1" ]]; then
+    need_cmd_quiet sha256sum || {
+      pkg_update_once
+      pkg_install_pkgs coreutils
+    }
+
+    local checksums_url checksums_file
+    checksums_url="https://github.com/getsops/sops/releases/download/v${version}/sops-v${version}.checksums.txt"
+    checksums_file="${td}/sops-v${version}.checksums.txt"
+
+    info "Downloading checksums file"
+    curl -fsSL -o "${checksums_file}" "${checksums_url}"
+    [[ -s "${checksums_file}" ]] || { ui_msgbox "Error" "Checksums file is empty. URL: ${checksums_url}"; rm -rf -- "${td}"; return 1; }
+
+    # Optional: verify checksums file signature with cosign (off by default)
+    if [[ "${SOPS_COSIGN_VERIFY:-0}" == "1" ]]; then
+      need_cmd_quiet cosign || { ui_msgbox "Error" "cosign is required for signature verification. Install cosign or set SOPS_COSIGN_VERIFY=0."; rm -rf -- "${td}"; return 1; }
+
+      local pem_url sig_url pem_file sig_file
+      pem_url="https://github.com/getsops/sops/releases/download/v${version}/sops-v${version}.checksums.pem"
+      sig_url="https://github.com/getsops/sops/releases/download/v${version}/sops-v${version}.checksums.sig"
+      pem_file="${td}/sops-v${version}.checksums.pem"
+      sig_file="${td}/sops-v${version}.checksums.sig"
+
+      info "Downloading cosign certificate + signature for checksums"
+      curl -fsSL -o "${pem_file}" "${pem_url}"
+      curl -fsSL -o "${sig_file}" "${sig_url}"
+
+      info "Verifying checksums signature with cosign"
+      cosign verify-blob "${checksums_file}" \
+        --certificate "${pem_file}" \
+        --signature "${sig_file}" \
+        --certificate-identity-regexp="https://github.com/getsops" \
+        --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+        >/dev/null
+    fi
+
+    # Verify binary integrity using checksums file (ignore missing for other platforms)
+    info "Verifying sops binary integrity via sha256sum"
+    (
+      cd "${td}"
+      sha256sum -c "$(basename "${checksums_file}")" --ignore-missing
+    )
+  fi
+
+  info "Installing sops to ${BIN_DIR}/sops"
+  as_root install -m 0755 "${bin}" "${BIN_DIR}/sops"
+
+  # Verify install
+  if command -v sops >/dev/null 2>&1; then
+    sops --version >/dev/null 2>&1 || true
+  fi
+
+  rm -rf -- "${td}"
+}
+
+uninstall_sops_binary() {
+  # =============================================================================
+  # Uninstall sops (binary install)
+  #
+  # Behaviour:
+  #   - Removes ${BIN_DIR}/sops if present
+  #   - Unmarks app-manager marker if it exists
+  # =============================================================================
+
+  # Remove binary (best-effort)
+  as_root rm -f -- "${BIN_DIR}/sops" >/dev/null 2>&1 || true
+
+  # Align with your marker approach
+  if is_marked_installed "sops"; then
+    unmark_installed "sops"
+  fi
+}
+
 # =============================================================================
 # HashiCorp repo (apt.releases.hashicorp.com)
 # =============================================================================
@@ -680,6 +1085,84 @@ remove_kubectl_binary() {
   if is_marked_installed "kubectl"; then
     as_root rm -f -- "${BIN_DIR}/kubectl" >/dev/null 2>&1 || true
     unmark_installed "kubectl"
+  fi
+}
+
+install_yq_binary() {
+  # =============================================================================
+  # Install yq (mikefarah/yq) via official GitHub pre-compiled binary download.
+  #
+  # Source approach:
+  #   - Latest:  https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+  #   - Pinned:  https://github.com/mikefarah/yq/releases/download/${VERSION}/yq_${PLATFORM}
+  #
+  # Notes:
+  #   - Uses wget if available, otherwise falls back to curl.
+  #   - Installs to ${BIN_DIR}/yq (project standard) and ensures +x.
+  #   - Verifies install by running "yq --version".
+  #
+  # Controls (env vars):
+  #   - YQ_VERSION: latest | 4.50.1 | v4.50.1
+  # =============================================================================
+
+  local version="${YQ_VERSION:-latest}"
+  version="${version#v}"
+
+  local os="linux"
+  local arch
+  case "$(uname -m)" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) ui_msgbox "Error" "Unsupported architecture for yq: $(uname -m)"; return 1 ;;
+  esac
+
+  local platform="${os}_${arch}"
+  local url
+  if [[ "${version}" == "latest" ]]; then
+    url="https://github.com/mikefarah/yq/releases/latest/download/yq_${platform}"
+  else
+    url="https://github.com/mikefarah/yq/releases/download/v${version}/yq_${platform}"
+  fi
+
+  ensure_state_dirs
+
+  # Ensure downloader exists
+  if ! need_cmd_quiet wget && ! need_cmd_quiet curl; then
+    pkg_update_once
+    pkg_install_pkgs wget curl
+  fi
+
+  info "Installing yq (${version}) from: ${url}"
+
+  local td bin
+  td="$(tmpdir_create)"
+  bin="${td}/yq"
+
+  if need_cmd_quiet wget; then
+    wget -qO "${bin}" "${url}"
+  else
+    curl -fsSL -o "${bin}" "${url}"
+  fi
+
+  # Basic sanity check: non-empty file
+  [[ -s "${bin}" ]] || { ui_msgbox "Error" "Downloaded yq binary is empty. URL: ${url}"; rm -rf -- "${td}"; return 1; }
+
+  as_root install -m 0755 "${bin}" "${BIN_DIR}/yq"
+  rm -rf -- "${td}"
+
+  # Verify
+  if command -v yq >/dev/null 2>&1; then
+    yq --version >/dev/null 2>&1 || true
+  fi
+}
+
+uninstall_yq_binary() {
+  # =============================================================================
+  # Uninstall yq (binary install)
+  # =============================================================================
+  as_root rm -f -- "${BIN_DIR}/yq" >/dev/null 2>&1 || true
+  if is_marked_installed "yq"; then
+    unmark_installed "yq"
   fi
 }
 
@@ -921,6 +1404,38 @@ install_by_strategy() {
       install_python_target
       verify_python_target
       ;;
+    github_cli_repo)
+      ensure_github_cli_repo
+      pkg_update_once
+      local -a pkgs_arr=(); pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+      pkg_install_pkgs "${pkgs_arr[@]}"
+      ;;
+    nvm)
+      ensure_nodesource_repo
+      ;;
+    mongodb_repo)
+      ensure_mongodb_repo
+      pkg_update_once
+      local -a pkgs_arr=(); pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+      pkg_install_pkgs "${pkgs_arr[@]}"
+      # Optional: enable/start mongod when systemd exists
+      if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+        as_root systemctl enable mongod >/dev/null 2>&1 || true
+        as_root systemctl start mongod >/dev/null 2>&1 || true
+      fi
+      ;;
+    grafana_repo)
+      ensure_grafana_repo
+      pkg_update_once
+      local -a pkgs_arr=(); pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+      pkg_install_pkgs "${pkgs_arr[@]}"
+      ;;
+    yq_binary)
+      install_yq_binary
+      ;;
+    sops_binary)
+      install_sops_binary
+      ;;
     *)
       ui_msgbox "Error" "Unknown strategy '${strategy}' for key '${key}'"
       return 1
@@ -948,6 +1463,49 @@ remove_by_strategy() {
       ;;
     docker_script)
       remove_docker_via_get_docker
+      ;;
+    github_cli_repo)
+      # Conservative remove based on marker
+      if is_marked_installed "${key}"; then
+        local marked_csv; marked_csv="$(marker_get_packages_compat_csv "${key}" || true)"
+        local -a marked_arr=(); pkgs_csv_to_array "${marked_csv}" marked_arr
+        ((${#marked_arr[@]})) && pkg_remove_pkgs "${marked_arr[@]}"
+        unmark_installed "${key}"
+      fi
+      ;;
+    nvm)
+      # Uninstall per-user NVM install (best-effort)
+      if is_marked_installed "${key}"; then
+        uninstall_nvm_node
+      fi
+      ;;
+    mongodb_repo)
+      if is_marked_installed "${key}"; then
+        if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+          as_root systemctl stop mongod >/dev/null 2>&1 || true
+          as_root systemctl disable mongod >/dev/null 2>&1 || true
+        fi
+        local marked_csv; marked_csv="$(marker_get_packages_compat_csv "${key}" || true)"
+        local -a marked_arr=(); pkgs_csv_to_array "${marked_csv}" marked_arr
+        ((${#marked_arr[@]})) && pkg_remove_pkgs "${marked_arr[@]}"
+        unmark_installed "${key}"
+      fi
+      ;;
+    grafana_repo)
+      if is_marked_installed "${key}"; then
+        uninstall_grafana_alloy
+        unmark_installed "${key}"
+      fi
+      ;;
+    yq_binary)
+      if is_marked_installed "${key}"; then
+        uninstall_yq_binary
+      fi
+      ;;
+    sops_binary)
+      if is_marked_installed "${key}"; then
+        uninstall_sops_binary
+      fi
       ;;
     *)
       ui_msgbox "Error" "Unknown strategy '${strategy}' for key '${key}'"
@@ -1097,10 +1655,36 @@ edit_version_pins() {
 }
 
 audit_selected_apps() {
+  # =============================================================================
+  # Audit selected apps and report what is missing.
+  #
+  # Verifies:
+  #   - apt/hashicorp_repo/python/github_cli_repo/mongodb_repo/grafana_repo: dpkg installed state
+  #   - binary: helm/kubectl binaries present
+  #   - yq_binary/sops_binary: yq/sops binaries present
+  #   - docker_script: docker CLI present
+  #   - nvm: checks for ~/.nvm + node/npm available for target user
+  #
+  # Notes:
+  #   - This is an audit for "selected=1" items, not an installer.
+  #   - Uses best-effort checks for systemd services (mongod/alloy) when systemd exists.
+  # =============================================================================
+
   load_env || true
 
   local ok_lines="" fail_lines=""
   local row type key label def pkgs_csv desc strategy version_var
+
+  # Determine target user for per-user installs (NVM, pyenv, etc.)
+  local target_user target_home
+  target_user="${SUDO_USER:-$USER}"
+  target_home="$(getent passwd "${target_user}" | cut -d: -f6)"
+  [[ -n "${target_home}" && -d "${target_home}" ]] || target_home=""
+
+  local has_systemd=0
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    has_systemd=1
+  fi
 
   for row in "${APP_CATALOGUE[@]}"; do
     IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
@@ -1108,8 +1692,10 @@ audit_selected_apps() {
     [[ "$(get_selection_value "${key}")" == "1" ]] || continue
 
     strategy="${strategy:-apt}"
+
     case "${strategy}" in
-      apt|hashicorp_repo|python)
+      # dpkg-based checks (apt-delivered packages)
+      apt|hashicorp_repo|python|github_cli_repo|mongodb_repo|grafana_repo)
         if [[ -z "${pkgs_csv}" ]]; then
           ok_lines+="${key} (no packages)\n"
         elif verify_pkgs_installed "${pkgs_csv}"; then
@@ -1117,18 +1703,66 @@ audit_selected_apps() {
         else
           fail_lines+="${key} (missing: ${pkgs_csv})\n"
         fi
-        ;;
-      binary)
-        if [[ "${key}" == "helm" ]]; then
-          command -v helm >/dev/null 2>&1 && ok_lines+="helm\n" || fail_lines+="helm (missing binary)\n"
-        elif [[ "${key}" == "kubectl" ]]; then
-          command -v kubectl >/dev/null 2>&1 && ok_lines+="kubectl\n" || fail_lines+="kubectl (missing binary)\n"
-        else
-          ok_lines+="${key} (binary)\n"
+
+        # Service checks (best-effort, do not fail the audit on service state)
+        if [[ "${has_systemd}" -eq 1 ]]; then
+          if [[ "${key}" == "mongodb" ]]; then
+            systemctl is-active --quiet mongod && ok_lines+="mongodb (mongod active)\n" || ok_lines+="mongodb (mongod not active)\n"
+          elif [[ "${key}" == "grafana_alloy" ]]; then
+            systemctl is-active --quiet alloy && ok_lines+="grafana_alloy (alloy active)\n" || ok_lines+="grafana_alloy (alloy not active)\n"
+          fi
         fi
         ;;
+
+      # Built-in binary installers (managed by this script)
+      binary)
+        case "${key}" in
+          helm)
+            command -v helm >/dev/null 2>&1 && ok_lines+="helm\n" || fail_lines+="helm (missing binary)\n"
+            ;;
+          kubectl)
+            command -v kubectl >/dev/null 2>&1 && ok_lines+="kubectl\n" || fail_lines+="kubectl (missing binary)\n"
+            ;;
+          *)
+            command -v "${key}" >/dev/null 2>&1 && ok_lines+="${key}\n" || fail_lines+="${key} (missing binary)\n"
+            ;;
+        esac
+        ;;
+
+      # Docker convenience script install
       docker_script)
         command -v docker >/dev/null 2>&1 && ok_lines+="docker_cli\n" || fail_lines+="docker_cli (docker not found)\n"
+        ;;
+
+      # yq binary install
+      yq_binary)
+        command -v yq >/dev/null 2>&1 && ok_lines+="yq\n" || fail_lines+="yq (missing binary)\n"
+        ;;
+
+      # sops binary install
+      sops_binary)
+        command -v sops >/dev/null 2>&1 && ok_lines+="sops\n" || fail_lines+="sops (missing binary)\n"
+        ;;
+
+      # NVM-based Node install (per-user)
+      nodesource_repo)
+        if [[ -z "${target_home}" ]]; then
+          fail_lines+="nodejs (cannot determine target home for ${target_user})\n"
+        elif [[ ! -d "${target_home}/.nvm" ]]; then
+          fail_lines+="nodejs (nvm not found at ${target_home}/.nvm)\n"
+        else
+          # Verify node/npm available in a login shell for the target user
+          if sudo -u "${target_user}" bash -lc 'set -euo pipefail; export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; command -v node >/dev/null; command -v npm >/dev/null; node -v >/dev/null; npm -v >/dev/null'; then
+            ok_lines+="nodejs (nvm)\n"
+          else
+            fail_lines+="nodejs (nvm present, but node/npm not available)\n"
+          fi
+        fi
+        ;;
+
+      *)
+        # Unknown or new strategy - don't fail hard, but report clearly
+        fail_lines+="${key} (unknown strategy: ${strategy})\n"
         ;;
     esac
   done
@@ -1141,6 +1775,7 @@ audit_selected_apps() {
   ui_msgbox "Audit: All installed" "All selected apps verified as installed:\n\n$(printf '%b' "${ok_lines}")"
   return 0
 }
+
 
 apply_changes() {
   if ! ui_confirm "Apply Changes" "This will install selected apps.\nIt will remove only apps that were installed by this manager.\n\nProceed?"; then
