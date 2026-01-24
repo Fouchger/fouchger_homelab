@@ -407,6 +407,18 @@ write_default_env_if_missing() {
   load_env
 }
 
+_app_test_show_dialog() {
+  local report_file="$1"
+  local title="${2:-App install status}"
+
+  if declare -F ui_textbox >/dev/null 2>&1; then
+    ui_textbox "${title}" "${report_file}"
+    return 0
+  fi
+
+  ui_msgbox "${title}" "Report saved to:\n${report_file}\n\n(ui_textbox not available, so not displaying full content)"
+}
+
 # =============================================================================
 # Apt package availability checks (prevents a single missing package killing the run)
 # =============================================================================
@@ -1664,11 +1676,12 @@ edit_version_pins() {
 # Notes
 #   - Always returns 0 so it never breaks `make menu` or interactive flows.
 # =============================================================================
-app_test() {
+audit_selected_apps() {
+
   apm_init_paths
 
   local env_file="${ENV_FILE}"
-  local out_file="${1:-${APPM_DIR}/app-test-status.txt}"
+  local out_file="${1:-${APPM_DIR}/app-install-status.txt}"
 
   if [[ ! -f "${env_file}" ]]; then
     printf 'ERROR: Env file not found: %s\n' "${env_file}" >"${out_file}"
@@ -1863,4 +1876,131 @@ app_test() {
 
   _app_test_show_dialog "${out_file}" "App install status"
   return 0
+}
+
+# =============================================================================
+# Function: apply_changes
+# Purpose : 
+#
+# Notes
+#   - 
+# =============================================================================
+apply_changes() {
+  if ! ui_confirm "Apply Changes" "This will install selected apps.\nIt will remove only apps that were installed by this manager.\n\nProceed?"; then
+    return 0
+  fi
+
+  apm_init_paths
+
+  # Ensure lib/logging is in use and logging goes to this file
+  logging_set_files "${LOG_FILE}"
+  logging_begin_capture "${LOG_FILE}"
+  trap 'logging_end_capture' RETURN
+
+  info "Apply started. Log file: ${LOG_FILE}"
+
+  ensure_pkg_mgr
+  pkg_update_once
+  load_env || true
+
+  local row type key label def pkgs_csv desc strategy version_var
+  local -a apt_install_list=()
+  local need_hashicorp_repo=0
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+      case "${strategy}" in
+        apt|hashicorp_repo)
+          [[ "${strategy}" == "hashicorp_repo" ]] && need_hashicorp_repo=1
+          local -a pkgs_arr=()
+          pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+          ((${#pkgs_arr[@]})) && apt_install_list+=("${pkgs_arr[@]}")
+          ;;
+      esac
+    fi
+  done
+
+  if [[ "${need_hashicorp_repo}" -eq 1 ]]; then
+    info "HashiCorp repo required. Ensuring repo is configured."
+    ensure_hashicorp_repo
+    pkg_update_once
+  fi
+
+  local -a apt_install_unique=()
+  unique_pkgs apt_install_list apt_install_unique
+
+  local -a apt_install_final=()
+  local -a apt_missing=()
+  filter_installable_apt_pkgs apt_install_unique apt_install_final apt_missing
+
+  if ((${#apt_missing[@]})); then
+    warn "Skipping missing apt packages: ${apt_missing[*]}"
+    ui_msgbox "Skipped packages" "These packages are not available from current apt sources and were skipped:\n\n${apt_missing[*]}\n\nTip: Some items need a vendor repo or a binary install strategy."
+  fi
+
+  if ((${#apt_install_final[@]})); then
+    info "Installing (apt/${PKG_MGR}) count=${#apt_install_final[@]}"
+    pkg_install_pkgs "${apt_install_final[@]}"
+  else
+    info "No apt packages selected for installation."
+  fi
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+      case "${strategy}" in
+        apt|hashicorp_repo)
+          if [[ -n "${pkgs_csv}" ]] && verify_pkgs_installed "${pkgs_csv}"; then
+            mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+            ok "Marked installed: ${key}"
+          else
+            warn "Not marking ${key}; packages not fully installed: ${pkgs_csv}"
+          fi
+          ;;
+      esac
+    fi
+  done
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    case "${strategy}" in
+      python|binary|docker_script)
+        if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+          info "Installing (${strategy}): ${key}"
+          install_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+          mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+          ok "Installed: ${key}"
+        else
+          info "Removing (${strategy}): ${key}"
+          remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+        fi
+        ;;
+      apt|hashicorp_repo)
+        if [[ "$(get_selection_value "${key}")" != "1" ]] && is_marked_installed "${key}"; then
+          info "Removing (conservative ${strategy}): ${key}"
+          remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+        fi
+        ;;
+    esac
+  done
+
+  info "Autoremove via ${PKG_MGR}"
+  pkg_autoremove
+
+  audit_selected_apps || true
+  ok "Apply complete."
+  ui_msgbox "Complete" "Install / uninstall complete.\n\nLog:\n${LOG_FILE}"
 }
