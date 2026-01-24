@@ -1657,6 +1657,409 @@ edit_version_pins() {
 
 # =============================================================================
 # Function: audit_selected_apps
+# Purpose : Dynamically audit ONLY items marked for installation in app_install_list.env
+# Notes   :
+#   - Reads ${ENV_FILE} directly (no reliance on sourced APP_* vars for selection)
+#   - Builds a dynamic dpkg package list from APP_CATALOGUE for selected=1 apps
+#   - Checks dpkg status for apt-delivered packages
+#   - Separately audits non-dpkg strategies (binary, yq/sops, docker, nvm) in a
+#     lightweight, best-effort way
+# =============================================================================
+audit_selected_apps() {
+  local env_file="${ENV_FILE}"
+
+  if [[ ! -f "${env_file}" ]]; then
+    ui_msgbox "Audit error" "Env file not found:\n\n${env_file}\n\nRun Apply or create selections first."
+    return 1
+  fi
+
+  local ok_lines="" fail_lines=""
+  local -a selected_keys=()
+  local -a dpkg_packages=()
+  local -a tmp_pkgs=()
+
+  # Determine target user for per-user installs (NVM, pyenv, etc.)
+  local target_user target_home
+  target_user="${SUDO_USER:-$USER}"
+  target_home="$(getent passwd "${target_user}" | cut -d: -f6)"
+  [[ -n "${target_home}" && -d "${target_home}" ]] || target_home=""
+
+  local has_systemd=0
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    has_systemd=1
+  fi
+
+  info "Audit started. Reading selections from: ${env_file}"
+  info "Audit target user: ${target_user} (home: ${target_home:-unknown})"
+
+  # ---------------------------------------------------------------------------
+  # Step 1: Read ONLY items marked for installation (APP_*=1) from ENV_FILE
+  #         Convert APP_FOO_BAR -> foo_bar (matches your catalogue keys)
+  # ---------------------------------------------------------------------------
+  while IFS='=' read -r k v; do
+    [[ -z "${k}" || "${k}" =~ ^[[:space:]]*# ]] && continue
+    [[ "${k}" =~ ^APP_ ]] || continue
+    [[ "${v}" == "1" ]] || continue
+
+    # APP_OPENSSH -> openssh ; APP_BUILD_ESSENTIAL -> build_essential
+    local key
+    key="${k#APP_}"
+    key="$(printf '%s' "${key}" | tr '[:upper:]' '[:lower:]')"
+    selected_keys+=("${key}")
+  done < "${env_file}"
+
+  if [[ "${#selected_keys[@]}" -eq 0 ]]; then
+    ui_msgbox "Audit" "No applications are marked for installation in:\n\n${env_file}"
+    return 0
+  fi
+
+  # ---------------------------------------------------------------------------
+  # Helper: find a catalogue row by key and return its fields
+  # ---------------------------------------------------------------------------
+  _catalogue_get_row_by_key() {
+    local want_key="$1"
+    local row type key label def pkgs_csv desc strategy version_var
+    for row in "${APP_CATALOGUE[@]}"; do
+      IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+      [[ "${type}" == "APP" ]] || continue
+      [[ "${key}" == "${want_key}" ]] || continue
+      printf '%s\n' "${row}"
+      return 0
+    done
+    return 1
+  }
+
+  # ---------------------------------------------------------------------------
+  # Step 2: Build dynamic dpkg package list for selected apps
+  #         Only include strategies that are package-based and have pkgs_csv
+  # ---------------------------------------------------------------------------
+  local key row type label def pkgs_csv desc strategy version_var
+  for key in "${selected_keys[@]}"; do
+    row="$(_catalogue_get_row_by_key "${key}" || true)"
+    if [[ -z "${row}" ]]; then
+      warn "Audit NOTE: selected key not in catalogue: ${key}"
+      ok_lines+="${key} (not in catalogue)\n"
+      continue
+    fi
+
+    IFS='|' read -r type _k label def pkgs_csv desc strategy version_var <<<"${row}"
+    strategy="${strategy:-apt}"
+
+    case "${strategy}" in
+      apt|hashicorp_repo|python|github_cli_repo|mongodb_repo|grafana_repo)
+        if [[ -n "${pkgs_csv}" ]]; then
+          tmp_pkgs=()
+          pkgs_csv_to_array "${pkgs_csv}" tmp_pkgs
+          ((${#tmp_pkgs[@]})) && dpkg_packages+=("${tmp_pkgs[@]}")
+        else
+          ok_lines+="${key} (no dpkg packages)\n"
+        fi
+        ;;
+      *)
+        # Non-dpkg strategies are handled in Step 4
+        ;;
+    esac
+  done
+
+  # De-duplicate dpkg packages
+  local -a dpkg_unique=()
+  if ((${#dpkg_packages[@]})); then
+    unique_pkgs dpkg_packages dpkg_unique
+  fi
+
+  # ---------------------------------------------------------------------------
+  # Step 3: Audit dpkg packages (dynamic list, only selected=1 apps)
+  #         Uses the dpkg-query loop pattern you supplied
+  # ---------------------------------------------------------------------------
+  if ((${#dpkg_unique[@]})); then
+    info "Audit: dpkg package checks count=${#dpkg_unique[@]}"
+
+    local PKG
+    for PKG in "${dpkg_unique[@]}"; do
+      dpkg-query -W --showformat='${Status}\n' "${PKG}" 2>/dev/null | grep "install ok installed" >/dev/null
+      if [[ $? -eq 0 ]]; then
+        ok "Audit OK: package installed: ${PKG}"
+        ok_lines+="* ${PKG} is installed.\n"
+      else
+        warn "Audit FAIL: package NOT installed: ${PKG}"
+        fail_lines+="* ${PKG} is NOT installed.\n"
+      fi
+    done
+  else
+    info "Audit: no dpkg packages to check for selected apps."
+  fi
+
+  # ---------------------------------------------------------------------------
+  # Step 4: Audit non-dpkg strategies for selected apps (best-effort)
+  #         Keeps audit meaningful for helm/kubectl/yq/sops/docker/nvm
+  # ---------------------------------------------------------------------------
+  for key in "${selected_keys[@]}"; do
+    row="$(_catalogue_get_row_by_key "${key}" || true)"
+    [[ -n "${row}" ]] || continue
+
+    IFS='|' read -r type _k label def pkgs_csv desc strategy version_var <<<"${row}"
+    strategy="${strategy:-apt}"
+
+    case "${strategy}" in
+      binary)
+        case "${key}" in
+          helm)
+            if command -v helm >/dev/null 2>&1; then
+              ok "Audit OK: helm binary present"
+              ok_lines+="helm (binary present)\n"
+            else
+              warn "Audit FAIL: helm binary missing"
+              fail_lines+="helm (missing binary)\n"
+            fi
+            ;;
+          kubectl)
+            if command -v kubectl >/dev/null 2>&1; then
+              ok "Audit OK: kubectl binary present"
+              ok_lines+="kubectl (binary present)\n"
+            else
+              warn "Audit FAIL: kubectl binary missing"
+              fail_lines+="kubectl (missing binary)\n"
+            fi
+            ;;
+          *)
+            if command -v "${key}" >/dev/null 2>&1; then
+              ok "Audit OK: binary present for key=${key}"
+              ok_lines+="${key} (binary present)\n"
+            else
+              warn "Audit FAIL: binary missing for key=${key}"
+              fail_lines+="${key} (missing binary)\n"
+            fi
+            ;;
+        esac
+        ;;
+
+      yq_binary)
+        if command -v yq >/dev/null 2>&1; then
+          ok "Audit OK: yq binary present"
+          ok_lines+="yq (binary present)\n"
+        else
+          warn "Audit FAIL: yq binary missing"
+          fail_lines+="yq (missing binary)\n"
+        fi
+        ;;
+
+      sops_binary)
+        if command -v sops >/dev/null 2>&1; then
+          ok "Audit OK: sops binary present"
+          ok_lines+="sops (binary present)\n"
+        else
+          warn "Audit FAIL: sops binary missing"
+          fail_lines+="sops (missing binary)\n"
+        fi
+        ;;
+
+      docker_script)
+        if command -v docker >/dev/null 2>&1; then
+          ok "Audit OK: docker CLI present"
+          ok_lines+="docker_cli (docker present)\n"
+        else
+          warn "Audit FAIL: docker CLI not found"
+          fail_lines+="docker_cli (docker not found)\n"
+        fi
+        ;;
+
+      nvm)
+        if [[ -z "${target_home}" ]]; then
+          warn "Audit FAIL: nodejs (cannot determine target home for ${target_user})"
+          fail_lines+="nodejs (cannot determine target home for ${target_user})\n"
+        elif [[ ! -d "${target_home}/.nvm" ]]; then
+          warn "Audit FAIL: nodejs (nvm not found at ${target_home}/.nvm)"
+          fail_lines+="nodejs (nvm not found at ${target_home}/.nvm)\n"
+        else
+          if sudo -u "${target_user}" bash -lc 'set -euo pipefail; export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; command -v node >/dev/null; command -v npm >/dev/null; node -v >/dev/null; npm -v >/dev/null'; then
+            ok "Audit OK: nodejs (nvm) node/npm available for ${target_user}"
+            ok_lines+="nodejs (nvm ok)\n"
+          else
+            warn "Audit FAIL: nodejs (nvm present, but node/npm not available for ${target_user})"
+            fail_lines+="nodejs (nvm present, but node/npm not available)\n"
+          fi
+        fi
+        ;;
+
+      apt|hashicorp_repo|python|github_cli_repo|mongodb_repo|grafana_repo)
+        # Already handled via dpkg package list. Optional service notes (non-failing).
+        if [[ "${has_systemd}" -eq 1 ]]; then
+          if [[ "${key}" == "mongodb" ]]; then
+            if systemctl is-active --quiet mongod; then
+              ok "Audit OK: mongodb service mongod is active"
+              ok_lines+="mongodb (mongod active)\n"
+            else
+              warn "Audit NOTE: mongodb service mongod not active"
+              ok_lines+="mongodb (mongod not active)\n"
+            fi
+          elif [[ "${key}" == "grafana_alloy" ]]; then
+            if systemctl is-active --quiet alloy; then
+              ok "Audit OK: grafana_alloy service alloy is active"
+              ok_lines+="grafana_alloy (alloy active)\n"
+            else
+              warn "Audit NOTE: grafana_alloy service alloy not active"
+              ok_lines+="grafana_alloy (alloy not active)\n"
+            fi
+          fi
+        fi
+        ;;
+
+      *)
+        warn "Audit NOTE: no audit handler for strategy '${strategy}' (key=${key})"
+        ok_lines+="${key} (no audit handler for ${strategy})\n"
+        ;;
+    esac
+  done
+
+  # ---------------------------------------------------------------------------
+  # Step 5: Report
+  # ---------------------------------------------------------------------------
+  if [[ -n "${fail_lines}" ]]; then
+    warn "Audit complete: missing items detected"
+    ui_msgbox "Audit: Missing items" "Some items marked for installation did not verify as installed:\n\n$(printf '%b' "${fail_lines}")\nVerified OK:\n$(printf '%b' "${ok_lines}")"
+    return 1
+  fi
+
+  ok "Audit complete: all items marked for installation verified"
+  ui_msgbox "Audit: All installed" "All items marked for installation verified:\n\n$(printf '%b' "${ok_lines}")"
+  return 0
+}
+
+apply_changes() {
+  if ! ui_confirm "Apply Changes" "This will install selected apps.\nIt will remove only apps that were installed by this manager.\n\nProceed?"; then
+    return 0
+  fi
+
+  apm_init_paths
+
+  # Ensure lib/logging is in use and logging goes to this file
+  logging_set_files "${LOG_FILE}"
+  logging_begin_capture "${LOG_FILE}"
+  trap 'logging_end_capture' RETURN
+
+  info "Apply started. Log file: ${LOG_FILE}"
+
+  ensure_pkg_mgr
+  pkg_update_once
+  load_env || true
+
+  local row type key label def pkgs_csv desc strategy version_var
+  local -a apt_install_list=()
+  local need_hashicorp_repo=0
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+      case "${strategy}" in
+        apt|hashicorp_repo)
+          [[ "${strategy}" == "hashicorp_repo" ]] && need_hashicorp_repo=1
+          local -a pkgs_arr=()
+          pkgs_csv_to_array "${pkgs_csv}" pkgs_arr
+          ((${#pkgs_arr[@]})) && apt_install_list+=("${pkgs_arr[@]}")
+          ;;
+      esac
+    fi
+  done
+
+  if [[ "${need_hashicorp_repo}" -eq 1 ]]; then
+    info "HashiCorp repo required. Ensuring repo is configured."
+    ensure_hashicorp_repo
+    pkg_update_once
+  fi
+
+  local -a apt_install_unique=()
+  unique_pkgs apt_install_list apt_install_unique
+
+  local -a apt_install_final=()
+  local -a apt_missing=()
+  filter_installable_apt_pkgs apt_install_unique apt_install_final apt_missing
+
+  if ((${#apt_missing[@]})); then
+    warn "Skipping missing apt packages: ${apt_missing[*]}"
+    ui_msgbox "Skipped packages" "These packages are not available from current apt sources and were skipped:\n\n${apt_missing[*]}\n\nTip: Some items need a vendor repo or a binary install strategy."
+  fi
+
+  if ((${#apt_install_final[@]})); then
+    info "Installing (apt/${PKG_MGR}) count=${#apt_install_final[@]}"
+    pkg_install_pkgs "${apt_install_final[@]}"
+  else
+    info "No apt packages selected for installation."
+  fi
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+      case "${strategy}" in
+        apt|hashicorp_repo)
+          if [[ -n "${pkgs_csv}" ]] && verify_pkgs_installed "${pkgs_csv}"; then
+            mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+            ok "Marked installed: ${key}"
+          else
+            warn "Not marking ${key}; packages not fully installed: ${pkgs_csv}"
+          fi
+          ;;
+      esac
+    fi
+  done
+
+  for row in "${APP_CATALOGUE[@]}"; do
+    IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
+    [[ "${type}" == "APP" ]] || continue
+    validate_key "${key}" || continue
+    strategy="${strategy:-apt}"
+
+    case "${strategy}" in
+      python|binary|docker_script)
+        if [[ "$(get_selection_value "${key}")" == "1" ]]; then
+          info "Installing (${strategy}): ${key}"
+          install_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+          mark_installed "${key}" "${strategy}" "${pkgs_csv}"
+          ok "Installed: ${key}"
+        else
+          info "Removing (${strategy}): ${key}"
+          remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+        fi
+        ;;
+      apt|hashicorp_repo)
+        if [[ "$(get_selection_value "${key}")" != "1" ]] && is_marked_installed "${key}"; then
+          info "Removing (conservative ${strategy}): ${key}"
+          remove_by_strategy "${key}" "${pkgs_csv}" "${strategy}"
+        fi
+        ;;
+    esac
+  done
+
+  info "Autoremove via ${PKG_MGR}"
+  pkg_autoremove
+
+  audit_selected_apps || true
+  ok "Apply complete."
+  ui_msgbox "Complete" "Install / uninstall complete.\n\nLog:\n${LOG_FILE}"
+}
+
+_app_test_show_dialog() {
+  local report_file="$1"
+  local title="${2:-App install status}"
+
+  if declare -F ui_textbox >/dev/null 2>&1; then
+    ui_textbox "${title}" "${report_file}"
+    return 0
+  fi
+
+  ui_msgbox "${title}" "Report saved to:\n${report_file}\n\n(ui_textbox not available, so not displaying full content)"
+}
+
+
+# =============================================================================
+# Function: app_test
 # Purpose : Produce an install-status report for all apps marked APP_<KEY>=1 in
 #           ${ENV_FILE}, resolve via ${APP_CATALOGUE}, write to file, and display
 #           via dialog UI (then return to menu).

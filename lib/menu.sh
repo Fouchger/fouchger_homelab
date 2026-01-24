@@ -27,6 +27,7 @@ app_manager_menu() {
       3 "Change selections" \
       4 "Apply install/uninstall" \
       5 "Edit version pins" \
+      7 "check which apps are installed" \
       6 "Back"
 
     [[ -n "${choice}" ]] || return 0
@@ -37,6 +38,7 @@ app_manager_menu() {
       3) run_checklist ;;
       4) apply_changes ;;
       5) edit_version_pins ;;
+      7) audit_selected_apps ;;
       6) return 0 ;;
     esac
   done

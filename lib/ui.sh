@@ -180,3 +180,53 @@ ui_placeholder() {
     printf '%s\n' "[$title] $message" >&2
   fi
 }
+
+# =============================================================================
+# Function: ui_textbox
+# Created : 2026-01-24
+# Purpose : Display a scrollable text file in a large dialog textbox.
+#
+# Notes:
+# - Uses dialog --textbox with --scrollbar for long reports.
+# - Sizes the box to ~90% of terminal dimensions (with sane minimums).
+# - Requires dialog to be installed and $DIALOG_BIN / dialog available.
+# =============================================================================
+ui_textbox() {
+  local title="${1:-Output}"
+  local file="${2:-}"
+
+  if [[ -z "${file}" || ! -f "${file}" ]]; then
+    ui_msgbox "Error" "ui_textbox: file not found: ${file}"
+    return 0
+  fi
+
+  # Determine dialog binary (aligns with most ui.sh patterns)
+  local dlg="${DIALOG_BIN:-dialog}"
+  if ! command -v "${dlg}" >/dev/null 2>&1; then
+    echo "ui_textbox: dialog not found" >&2
+    return 1
+  fi
+
+  # Terminal sizing (fallbacks included)
+  local lines cols height width
+  lines="$(tput lines 2>/dev/null || echo 24)"
+  cols="$(tput cols 2>/dev/null || echo 80)"
+
+  # Use ~90% of available space
+  height=$(( lines - 4 ))
+  width=$(( cols - 6 ))
+
+  # Sane minimums so it remains usable on small consoles
+  (( height < 15 )) && height=15
+  (( width < 60 )) && width=60
+
+  # dialog textbox supports scrolling with arrow keys/PageUp/PageDown; scrollbar shows position.
+  # --no-collapse keeps formatting, --cr-wrap wraps long lines for readability.
+  "${dlg}" \
+    --backtitle "${UI_BACKTITLE:-fouchger_homelab}" \
+    --title "${title}" \
+    --scrollbar \
+    --no-collapse \
+    --cr-wrap \
+    --textbox "${file}" "${height}" "${width}"
+}
