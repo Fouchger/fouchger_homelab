@@ -17,7 +17,7 @@
 # Maintainer: Gert
 # Contributors: ddployrr project contributors
 # -----------------------------------------------------------------------------
-
+echo "lib/logging.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

@@ -7,7 +7,7 @@
 #   - No direct operational logic here.
 #   - Delegate to action_* functions in lib/actions.sh
 # =============================================================================
-
+echo "lib/menu.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

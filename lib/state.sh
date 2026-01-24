@@ -11,7 +11,7 @@
 #   - Uses a simple dotenv-style file to avoid hard dependencies on jq.
 #   - Keys are normalised to uppercase with underscores.
 # ----------------------------------------------------------------------------
-
+echo "lib/state.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

@@ -19,7 +19,7 @@
 # Notes
 #   - This file expects lib/state.sh and lib/ui.sh to be loaded before use.
 # -----------------------------------------------------------------------------
-
+echo "lib/features.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

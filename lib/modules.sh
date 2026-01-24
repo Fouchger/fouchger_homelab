@@ -10,6 +10,7 @@
 #   -   Loading functions are idempotent.
 #   -   Load core lib first, then modules.
 # -----------------------------------------------------------------------------
+echo "lib/modules.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

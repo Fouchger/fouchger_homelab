@@ -15,7 +15,7 @@
 #   - Mouse enabled
 #   - Spacebar toggles items in checklists (dialog default)
 # =============================================================================
-
+echo "lib/ui.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 

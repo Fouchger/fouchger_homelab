@@ -19,7 +19,7 @@
 #          .gitignore to support runs where git is not installed.
 #   - Marker file: .homelab_repo_root (at repo root).
 # -----------------------------------------------------------------------------
-
+echo "lib/paths.sh"
 # Guardrail: prevent double-sourcing.
 if [[ -n "${_HOMELAB_PATHS_SOURCED:-}" ]]; then
   return 0

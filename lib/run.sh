@@ -10,7 +10,7 @@
 #   - The log capture uses tee. When stdout is redirected, the caller may choose
 #     to disable tee by setting HOMELAB_NO_TEE=1.
 # -----------------------------------------------------------------------------
-
+echo "lib/run.sh"
 set -Eeuo pipefail
 IFS=$'\n\t'
 
