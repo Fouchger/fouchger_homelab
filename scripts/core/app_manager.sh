@@ -413,13 +413,14 @@ write_default_env_if_missing() {
 apt_pkg_has_candidate() {
   local pkg="$1"
   apt-cache policy "${pkg}" 2>/dev/null | awk -F': ' '
-    $1=="Candidate" {
-      if ($2=="" || $2=="(none)") exit 1
+    $1=="Candidate" { cand=$2 }
+    END {
+      if (cand=="" || cand=="(none)") exit 1
       exit 0
     }
-    END { exit 1 }
   '
 }
+
 
 filter_installable_apt_pkgs() {
   local in_name="$1" out_name="$2" missing_name="$3"
@@ -1658,16 +1659,16 @@ audit_selected_apps() {
   # =============================================================================
   # Audit selected apps and report what is missing.
   #
-  # Verifies:
-  #   - apt/hashicorp_repo/python/github_cli_repo/mongodb_repo/grafana_repo: dpkg installed state
+  # Verifies (for selected=1 items in ENV_FILE):
+  #   - apt/hashicorp_repo/python/github_cli_repo/mongodb_repo/grafana_repo:
+  #       dpkg-query per package (logged per package)
   #   - binary: helm/kubectl binaries present
   #   - yq_binary/sops_binary: yq/sops binaries present
   #   - docker_script: docker CLI present
-  #   - nvm: checks for ~/.nvm + node/npm available for target user
+  #   - nvm: ~/.nvm exists AND node/npm available for target user in a login shell
   #
-  # Notes:
-  #   - This is an audit for "selected=1" items, not an installer.
-  #   - Uses best-effort checks for systemd services (mongod/alloy) when systemd exists.
+  # Logging:
+  #   - Uses ok/warn/info so output is captured in your apply log capture.
   # =============================================================================
 
   load_env || true
@@ -1686,6 +1687,33 @@ audit_selected_apps() {
     has_systemd=1
   fi
 
+  info "Audit started. Reading selections from: ${ENV_FILE}"
+  info "Audit target user: ${target_user} (home: ${target_home:-unknown})"
+
+  # Helper: dpkg-query per package, log each package line (captured by logging)
+  audit_dpkg_pkg() {
+    local app_key="$1" pkg="$2"
+    if dpkg-query -W --showformat='${Status}\n' "${pkg}" 2>/dev/null | grep -q "install ok installed"; then
+      ok "Audit OK: ${app_key} package installed: ${pkg}"
+      ok_lines+="${app_key}: ${pkg}\n"
+      return 0
+    fi
+    warn "Audit FAIL: ${app_key} package NOT installed: ${pkg}"
+    fail_lines+="${app_key}: missing package ${pkg}\n"
+    return 1
+  }
+
+  # Helper: audit a CSV list of packages, one by one
+  audit_dpkg_pkgs_csv() {
+    local app_key="$1" csv="$2"
+    local -a pkgs_arr=()
+    pkgs_csv_to_array "${csv}" pkgs_arr
+    local p
+    for p in "${pkgs_arr[@]}"; do
+      audit_dpkg_pkg "${app_key}" "${p}" || true
+    done
+  }
+
   for row in "${APP_CATALOGUE[@]}"; do
     IFS='|' read -r type key label def pkgs_csv desc strategy version_var <<<"${row}"
     [[ "${type}" == "APP" ]] || continue
@@ -1693,23 +1721,36 @@ audit_selected_apps() {
 
     strategy="${strategy:-apt}"
 
+    info "Audit: checking selected app '${key}' (strategy=${strategy})"
+
     case "${strategy}" in
       # dpkg-based checks (apt-delivered packages)
       apt|hashicorp_repo|python|github_cli_repo|mongodb_repo|grafana_repo)
         if [[ -z "${pkgs_csv}" ]]; then
+          ok "Audit OK: ${key} has no package list (nothing to dpkg-check)"
           ok_lines+="${key} (no packages)\n"
-        elif verify_pkgs_installed "${pkgs_csv}"; then
-          ok_lines+="${key}\n"
         else
-          fail_lines+="${key} (missing: ${pkgs_csv})\n"
+          audit_dpkg_pkgs_csv "${key}" "${pkgs_csv}"
         fi
 
         # Service checks (best-effort, do not fail the audit on service state)
         if [[ "${has_systemd}" -eq 1 ]]; then
           if [[ "${key}" == "mongodb" ]]; then
-            systemctl is-active --quiet mongod && ok_lines+="mongodb (mongod active)\n" || ok_lines+="mongodb (mongod not active)\n"
+            if systemctl is-active --quiet mongod; then
+              ok "Audit OK: mongodb service mongod is active"
+              ok_lines+="mongodb (mongod active)\n"
+            else
+              warn "Audit NOTE: mongodb service mongod not active"
+              ok_lines+="mongodb (mongod not active)\n"
+            fi
           elif [[ "${key}" == "grafana_alloy" ]]; then
-            systemctl is-active --quiet alloy && ok_lines+="grafana_alloy (alloy active)\n" || ok_lines+="grafana_alloy (alloy not active)\n"
+            if systemctl is-active --quiet alloy; then
+              ok "Audit OK: grafana_alloy service alloy is active"
+              ok_lines+="grafana_alloy (alloy active)\n"
+            else
+              warn "Audit NOTE: grafana_alloy service alloy not active"
+              ok_lines+="grafana_alloy (alloy not active)\n"
+            fi
           fi
         fi
         ;;
@@ -1718,63 +1759,105 @@ audit_selected_apps() {
       binary)
         case "${key}" in
           helm)
-            command -v helm >/dev/null 2>&1 && ok_lines+="helm\n" || fail_lines+="helm (missing binary)\n"
+            if command -v helm >/dev/null 2>&1; then
+              ok "Audit OK: helm binary present"
+              ok_lines+="helm\n"
+            else
+              warn "Audit FAIL: helm binary missing"
+              fail_lines+="helm (missing binary)\n"
+            fi
             ;;
           kubectl)
-            command -v kubectl >/dev/null 2>&1 && ok_lines+="kubectl\n" || fail_lines+="kubectl (missing binary)\n"
+            if command -v kubectl >/dev/null 2>&1; then
+              ok "Audit OK: kubectl binary present"
+              ok_lines+="kubectl\n"
+            else
+              warn "Audit FAIL: kubectl binary missing"
+              fail_lines+="kubectl (missing binary)\n"
+            fi
             ;;
           *)
-            command -v "${key}" >/dev/null 2>&1 && ok_lines+="${key}\n" || fail_lines+="${key} (missing binary)\n"
+            if command -v "${key}" >/dev/null 2>&1; then
+              ok "Audit OK: binary present for key=${key}"
+              ok_lines+="${key}\n"
+            else
+              warn "Audit FAIL: binary missing for key=${key}"
+              fail_lines+="${key} (missing binary)\n"
+            fi
             ;;
         esac
         ;;
 
       # Docker convenience script install
       docker_script)
-        command -v docker >/dev/null 2>&1 && ok_lines+="docker_cli\n" || fail_lines+="docker_cli (docker not found)\n"
+        if command -v docker >/dev/null 2>&1; then
+          ok "Audit OK: docker CLI present"
+          ok_lines+="docker_cli\n"
+        else
+          warn "Audit FAIL: docker CLI not found"
+          fail_lines+="docker_cli (docker not found)\n"
+        fi
         ;;
 
       # yq binary install
       yq_binary)
-        command -v yq >/dev/null 2>&1 && ok_lines+="yq\n" || fail_lines+="yq (missing binary)\n"
+        if command -v yq >/dev/null 2>&1; then
+          ok "Audit OK: yq binary present"
+          ok_lines+="yq\n"
+        else
+          warn "Audit FAIL: yq binary missing"
+          fail_lines+="yq (missing binary)\n"
+        fi
         ;;
 
       # sops binary install
       sops_binary)
-        command -v sops >/dev/null 2>&1 && ok_lines+="sops\n" || fail_lines+="sops (missing binary)\n"
+        if command -v sops >/dev/null 2>&1; then
+          ok "Audit OK: sops binary present"
+          ok_lines+="sops\n"
+        else
+          warn "Audit FAIL: sops binary missing"
+          fail_lines+="sops (missing binary)\n"
+        fi
         ;;
 
       # NVM-based Node install (per-user)
-      nodesource_repo)
+      nvm)
         if [[ -z "${target_home}" ]]; then
+          warn "Audit FAIL: nodejs (cannot determine target home for ${target_user})"
           fail_lines+="nodejs (cannot determine target home for ${target_user})\n"
         elif [[ ! -d "${target_home}/.nvm" ]]; then
+          warn "Audit FAIL: nodejs (nvm not found at ${target_home}/.nvm)"
           fail_lines+="nodejs (nvm not found at ${target_home}/.nvm)\n"
         else
-          # Verify node/npm available in a login shell for the target user
           if sudo -u "${target_user}" bash -lc 'set -euo pipefail; export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; command -v node >/dev/null; command -v npm >/dev/null; node -v >/dev/null; npm -v >/dev/null'; then
+            ok "Audit OK: nodejs (nvm) node/npm available for ${target_user}"
             ok_lines+="nodejs (nvm)\n"
           else
+            warn "Audit FAIL: nodejs (nvm present, but node/npm not available for ${target_user})"
             fail_lines+="nodejs (nvm present, but node/npm not available)\n"
           fi
         fi
         ;;
 
       *)
-        # Unknown or new strategy - don't fail hard, but report clearly
+        warn "Audit FAIL: ${key} (unknown strategy: ${strategy})"
         fail_lines+="${key} (unknown strategy: ${strategy})\n"
         ;;
     esac
   done
 
   if [[ -n "${fail_lines}" ]]; then
+    warn "Audit complete: missing items detected"
     ui_msgbox "Audit: Missing items" "Some selected apps did not verify as installed:\n\n$(printf '%b' "${fail_lines}")\nInstalled OK:\n$(printf '%b' "${ok_lines}")"
     return 1
   fi
 
+  ok "Audit complete: all selected apps verified"
   ui_msgbox "Audit: All installed" "All selected apps verified as installed:\n\n$(printf '%b' "${ok_lines}")"
   return 0
 }
+
 
 
 apply_changes() {
@@ -1785,7 +1868,7 @@ apply_changes() {
   apm_init_paths
 
   # Ensure lib/logging is in use and logging goes to this file
-  logging_set_file "${LOG_FILE}"
+  logging_set_files "${LOG_FILE}"
   logging_begin_capture "${LOG_FILE}"
   trap 'logging_end_capture' RETURN
 
