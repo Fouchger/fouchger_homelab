@@ -11,10 +11,21 @@
 #   - Uses a simple dotenv-style file to avoid hard dependencies on jq.
 #   - Keys are normalised to uppercase with underscores.
 # ----------------------------------------------------------------------------
-
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# -----------------------------------------------------------------------------
+# Defaults
+# -----------------------------------------------------------------------------
+# Notes:
+#   - This file may be sourced early (e.g. from bin/homelab via lib/core.sh).
+#   - With set -u, referencing an unset variable will hard-fail.
+#   - Provide safe defaults and avoid hard dependency on ensure_dirs ordering.
+
+# # Default state directory (overrideable).
+# STATE_DIR_DEFAULT="${STATE_DIR_DEFAULT:-${XDG_STATE_HOME:-$HOME/.local/state}/fouchger_homelab}"
+
+# Default state file path (overrideable).
 STATE_FILE="${STATE_FILE:-$STATE_DIR_DEFAULT/state.env}"
 
 _state_key() {
@@ -22,7 +33,12 @@ _state_key() {
 }
 
 state_init() {
-  ensure_dirs
+  # Create the directory even if lib/paths.sh hasn't been sourced yet.
+  if declare -F ensure_dirs >/dev/null 2>&1; then
+    ensure_dirs
+  else
+    mkdir -p "$(dirname "$STATE_FILE")" >/dev/null 2>&1 || true
+  fi
   if [ ! -f "$STATE_FILE" ]; then
     printf '# fouchger_homelab state\n' >"$STATE_FILE"
     chmod 600 "$STATE_FILE" || true

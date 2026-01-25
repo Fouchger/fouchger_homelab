@@ -1,111 +1,209 @@
-# -----------------------------------------------------------------------------
-# Filename: Makefile
-# Created:  2026-01-20
-# Updated:  2026-01-22
-# Description: Makefile for Fouchger's Homelab automation
-# Usage: Run 'make <target>' to execute specific tasks
-# Developer notes:
-# - Keep targets idempotent and safe-by-default.
-# - Prefer calling scripts under scripts/ rather than embedding logic here.
-# Maintainer: Gert
-# -----------------------------------------------------------------------------
+#!/usr/bin/env bash
+# =============================================================================
+# Filename: lib/menu.sh
+# Description: Menu and submenu routing (navigation only)
+#
+# Notes
+#   - No direct operational logic here.
+#   - Delegate to action_* functions in lib/actions.sh
+# =============================================================================
+set -Eeuo pipefail
+IFS=$'\n\t'
 
-SHELL := /usr/bin/env bash
+if [[ -z "${REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fi
 
-.DEFAULT_GOAL := help
+#-----------------------------------------------------------------------------
+# Sub Menu Setup
+#-----------------------------------------------------------------------------
+app_manager_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Ubuntu App Manager - Run Local" "Choose an action:" choice \
+      1 "Apply profile (replace selections)" \
+      2 "Apply profile (add to selections)" \
+      3 "Change selections" \
+      4 "Apply install/uninstall" \
+      5 "Edit version pins" \
+      7 "check which apps are installed" \
+      6 "Back"
 
-.PHONY: help
-help: ## Show available targets
-	@awk 'BEGIN {FS = ":.*##"}; /^[a-zA-Z0-9_.-]+:.*##/ {printf "%-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+    [[ -n "${choice}" ]] || return 0
 
-.PHONY: bootstrap
-bootstrap: ## Install minimal prerequisites on a fresh node and prepare tooling
-	@scripts/core/bootstrap.sh
+    case "${choice}" in
+      1) choose_and_apply_profile_replace ;;
+      2) choose_and_apply_profile_add ;;
+      3) run_checklist ;;
+      4) apply_changes ;;
+      5) edit_version_pins ;;
+      7) audit_selected_apps ;;
+      6) return 0 ;;
+    esac
+  done
+}
 
-.PHONY: menu
-menu: ## Launch the interactive homelab menu
-	@bin/homelab
+bootstrap_dev_server_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Bootstrap Development Server" "Choose an action:" choice \
+      1 "Install Code-Server" \
+      2 "Bootstrap server - Configs and Setup" \
+      3 "Back"
 
-.PHONY: capture.on
-capture.on: ## Enable Layer 2 session capture (ptlog)
-	@scripts/core/session_capture.sh on
+    [[ -n "${choice}" ]] || return 0
 
-.PHONY: capture.off
-capture.off: ## Disable Layer 2 session capture (ptlog)
-	@scripts/core/session_capture.sh off
+    case "${choice}" in
+      1)
+        ui_confirm "External script" "This will download and run a third-party script from GitHub.\n\nProceed?" || continue
+        bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/addon/coder-code-server.sh)" ;;
+      2) app_manager_menu ;;
+      3) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
 
-.PHONY: capture.status
-capture.status: ## Show Layer 2 session capture status (flag + ptlog)
-	@scripts/core/session_capture.sh status
+infrastructure_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Infrastructure" "Select an area:" choice \
+      1 "Proxmox templates" \
+      2 "MikroTik integration" \
+      3 "DNS services" \
+      4 "Back"
 
-.PHONY: capture.tail
-capture.tail: ## Tail the current Layer 2 capture log (blocks)
-	@scripts/core/session_capture.sh tail
+    [[ -n "${choice}" ]] || return 0
 
-.PHONY: validate
-validate: ## Validate configuration (reads ~/.config/fouchger_homelab/state.env)
-	@scripts/core/validate.sh
+    case "${choice}" in
+  1)
+        feature_require "PROXMOX" "Proxmox templates are not enabled yet on this host.
 
-.PHONY: healthcheck
-healthcheck: ## Run end-to-end health checks (DNS, reachability, optional HTTP)
-	@scripts/core/healthcheck.sh
+To enable:
+  state_set FEATURE_PROXMOX 1" \
+          && action_open_proxmox_templates ;;
+      2)
+        feature_require "MIKROTIK" "MikroTik integration is currently disabled on this host.
 
-.PHONY: lint
-lint: ## Run local quality gates (shellcheck/ansible-lint/terraform fmt)
-	@scripts/core/lint.sh
+To enable:
+  state_set FEATURE_MIKROTIK 1" \
+          && action_open_mikrotik_menu ;;
+      3)
+        feature_require "DNS" "DNS services are currently disabled on this host.
 
-.PHONY: test
-test: ## Run test suite (mode quick by default). Set MODE=infra or MODE=apply
-	@MODE=$${MODE:-quick} scripts/tests/run.sh "$${MODE}"
+To enable:
+  state_set FEATURE_DNS 1" \
+          && action_open_dns_menu ;;
+      4) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
 
-.PHONY: proxmox.token
-proxmox.token: ## Create or rotate Proxmox API token (Terraform/Ansible)
-	@scripts/proxmox/bootstrap-api-token.sh
+workflows_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Workflows" "Choose a workflow:" choice \
+      1 "Run questionnaires" \
+      2 "Back"
 
-.PHONY: proxmox.templates
-proxmox.templates: ## Download Proxmox templates and images
-	@scripts/proxmox/templates.sh
+    [[ -n "${choice}" ]] || return 0
 
-.PHONY: tf.init
-tf.init: ## Initialise Terraform
-	@cd terraform && terraform init
+    case "${choice}" in
+      1) action_run_questionnaires ;;
+      2) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
 
-.PHONY: tf.plan
-tf.plan: ## Terraform plan (reads state from ~/.config/homelab_2026_2/state.env)
-	@scripts/proxmox/terraform.sh plan
+#-----------------------------------------------------------------------------
+# Debug Menu
+#-----------------------------------------------------------------------------
+debug_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Debug" "Diagnostics and troubleshooting tools:" choice \
+      1 "Session capture: Enable" \
+      2 "Session capture: Disable" \
+      3 "Session capture: Status" \
+      4 "Session capture: Show last 200 lines" \
+      5 "Session capture: Live tail (Ctrl+C to exit)" \
+      6 "Back"
 
-.PHONY: tf.apply
-tf.apply: ## Terraform apply
-	@scripts/proxmox/terraform.sh apply
+    [[ -n "${choice}" ]] || return 0
 
-.PHONY: tf.destroy
-tf.destroy: ## Terraform destroy
-	@scripts/proxmox/terraform.sh destroy
+    case "${choice}" in
+      1)
+        "${REPO_ROOT}/scripts/core/session_capture.sh" on >/dev/null 2>&1 || true
+        ui_msgbox "Session capture" "Enabled. It will auto-start next time you run 'make menu'."
+        ;;
+      2)
+        "${REPO_ROOT}/scripts/core/session_capture.sh" off >/dev/null 2>&1 || true
+        ui_msgbox "Session capture" "Disabled."
+        ;;
+      3)
+        local tmp
+        tmp="$(ui_tmpfile session_capture_status)"
+        "${REPO_ROOT}/scripts/core/session_capture.sh" status >"${tmp}" 2>&1 || true
+        ui_textbox "Session capture status" "${tmp}" || true
+        ;;
+      4)
+        local tmp
+        tmp="$(ui_tmpfile session_capture_tail)"
+        if [[ -f "${HOME}/.ptlog/current.log" ]]; then
+          tail -n 200 "${HOME}/.ptlog/current.log" >"${tmp}" 2>&1 || true
+          ui_textbox "Session capture last 200 lines" "${tmp}" || true
+        else
+          ui_msgbox "Session capture" "No current log found at ${HOME}/.ptlog/current.log"
+        fi
+        ;;
+      5)
+        # Running a live tail inside dialog is clunky. We exit UI, run tail, then return.
+        ui_exit
+        if command -v ptlog >/dev/null 2>&1; then
+          ptlog tail || true
+        elif [[ -f "${HOME}/.ptlog/current.log" ]]; then
+          tail -f "${HOME}/.ptlog/current.log" || true
+        else
+          printf '%s\n' "No current log found. Enable capture and run a workflow first." >&2
+        fi
+        ui_init
+        ;;
+      6) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
 
-.PHONY: ansible
-ansible: ## Run Ansible site playbook
-	@scripts/core/ansible.sh
+#-----------------------------------------------------------------------------
+# Main Menu Setup
+#-----------------------------------------------------------------------------
+main_menu() {
+  ui_init
 
-.PHONY: secrets.install
-secrets.install: ## Install SOPS, age, and rbw (Vaultwarden compatible CLI)
-	@scripts/secrets/install.sh
+  while true; do
+    local choice=""
+    ui_menu "Fouchger_Homelab" "Choose an action:" choice \
+      1 "Git & Github Management" \
+      2 "Bootstrap Development Server (admin01)" \
+      3 "Infrastructure" \
+      4 "Workflows" \
+      5 "Debug" \
+      6 Exit
 
-.PHONY: mikrotik.backup
-mikrotik.backup: ## Run a MikroTik backup now
-	@scripts/mikrotik/backup.sh
+    [[ -n "${choice}" ]] || break
 
-.PHONY: mikrotik.health
-mikrotik.health: ## Run MikroTik health checks now
-	@scripts/mikrotik/healthcheck.sh
+    case "${choice}" in
+      1) "${REPO_ROOT}/scripts/core/dev-auth.sh" ;;
+      2) bootstrap_dev_server_menu ;;
+      3) infrastructure_menu ;;
+      4) workflows_menu ;;
+      5) debug_menu ;;
+      6) break ;;
+      *) break ;;
+    esac
+  done
 
-.PHONY: mikrotik.advertise_dns
-mikrotik.advertise_dns: ## Configure MikroTik to advertise dns01 + dns02 via DHCP
-	@scripts/mikrotik/configure-dns.sh
-
-.PHONY: mikrotik.start_config.install
-mikrotik.start_config.install: ## Install local MikroTik start config into ~/.config path
-	@scripts/mikrotik/install-start-config.sh
-
-.PHONY: mikrotik.start_config.apply
-mikrotik.start_config.apply: ## Apply local MikroTik start config to the router (opt-in)
-	@scripts/mikrotik/apply-start-config.sh
+  ui_exit
+}

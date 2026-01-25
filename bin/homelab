@@ -27,9 +27,9 @@ export REPO_ROOT
 # shellcheck source=lib/modules.sh
 source "${REPO_ROOT}/lib/modules.sh"
 # shellcheck source=lib/state.sh
-source "${REPO_ROOT}/lib/state.sh"
-# shellcheck source=lib/features.sh
-source "${REPO_ROOT}/lib/features.sh"
+# source "${REPO_ROOT}/lib/state.sh"
+# # shellcheck source=lib/features.sh
+# source "${REPO_ROOT}/lib/features.sh"
 
 maybe_start_session_capture() {
   # Uses ptlog's default state directory (~/.ptlog/) and current.log symlink.
@@ -70,9 +70,8 @@ maybe_start_session_capture() {
   fi
 }
 
-maybe_start_session_capture
-
 homelab_load_lib
 homelab_load_modules
+maybe_start_session_capture
 
 main_menu

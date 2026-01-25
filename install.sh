@@ -22,6 +22,8 @@
 #   HOMELAB_ENTRY     Command to run after clone/update
 #                    Default: make menu
 #   HOMELAB_NO_RUN    If set to 1, do not run HOMELAB_ENTRY (clone only)
+#   HOMELAB_INSTALL_PTLOG  If set to 0, skip installing ptlog (Layer 2 capture)
+#                    Default: 1
 #
 # Notes:
 #   - This installer currently supports Debian-like systems using apt-get.
@@ -39,6 +41,11 @@ HOMELAB_GIT_URL="${HOMELAB_GIT_URL:-https://github.com/Fouchger/fouchger_homelab
 HOMELAB_DIR="${HOMELAB_DIR:-$HOME/Fouchger/fouchger_homelab}"
 HOMELAB_ENTRY="${HOMELAB_ENTRY:-make menu}"
 HOMELAB_NO_RUN="${HOMELAB_NO_RUN:-0}"
+HOMELAB_INSTALL_PTLOG="${HOMELAB_INSTALL_PTLOG:-1}"
+
+# Pin to a known-good commit for supply-chain stability.
+# Update deliberately when you choose to upgrade.
+PTLOG_COMMIT="${PTLOG_COMMIT:-ac35b3b}"
 
 # --------------------------------- Helpers -----------------------------------
 
@@ -151,6 +158,8 @@ ensure_deps() {
 
   need_cmd git  || missing+=("git")
   need_cmd make || missing+=("make")
+  need_cmd curl || missing+=("curl")
+  need_cmd script || missing+=("util-linux")
 
   if ((${#missing[@]} > 0)); then
     if is_debian_like; then
@@ -158,6 +167,56 @@ ensure_deps() {
     else
       die "Missing required tools: ${missing[*]}. Install them and re-run (non-Debian OS detected)."
     fi
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Function: install_ptlog
+# Description:
+#   Installs Pentest-Terminal-Logger (ptlog) into /usr/local/bin.
+#   This is used for Layer 2 session capture.
+# Notes:
+#   - Uses a pinned commit for stability (override with PTLOG_COMMIT env var).
+#   - Requires curl and util-linux (script).
+# -----------------------------------------------------------------------------
+install_ptlog() {
+  [[ "${HOMELAB_INSTALL_PTLOG}" == "1" ]] || { info "Skipping ptlog install (HOMELAB_INSTALL_PTLOG=0)"; return 0; }
+
+  if have_cmd ptlog; then
+    info "ptlog already installed: $(command -v ptlog)"
+    return 0
+  fi
+
+  if ! is_debian_like; then
+    warn "Non-Debian OS detected; skipping ptlog install. Install manually if needed."
+    return 0
+  fi
+
+  local target="/usr/local/bin/ptlog"
+  local url="https://raw.githubusercontent.com/supasuge/Pentest-Terminal-Logger/${PTLOG_COMMIT}/ptlog.sh"
+
+  # Ensure we can write to /usr/local/bin
+  local -a run_cmd=()
+  if ! is_root; then
+    require_sudo
+    run_cmd=(sudo)
+  fi
+
+  info "Installing ptlog (Layer 2 capture) to ${target}"
+  info "Source: ${url}"
+
+  "${run_cmd[@]}" mkdir -p "$(dirname "${target}")"
+  if ! curl -fsSL "${url}" | "${run_cmd[@]}" tee "${target}" >/dev/null; then
+    warn "Failed to download ptlog from GitHub. Layer 2 capture will be unavailable until installed."
+    return 0
+  fi
+
+  "${run_cmd[@]}" chmod +x "${target}"
+
+  if have_cmd ptlog; then
+    info "ptlog installed successfully"
+  else
+    warn "ptlog install completed, but 'ptlog' is not on PATH. Check permissions and PATH."
   fi
 }
 
@@ -249,6 +308,7 @@ main() {
   ensure_deps
   clone_or_update
   post_clone_fixups
+  install_ptlog
   run_entry
 }
 
