@@ -26,9 +26,21 @@ run_init() {
   RUN_ID="${ts}-${component}"
   RUN_LOG_FILE="${LOG_DIR_DEFAULT}/${RUN_ID}.log"
 
-  # Start log capture.
-  if [ -z "${HOMELAB_NO_TEE:-}" ]; then
-    exec > >(tee -a "$RUN_LOG_FILE") 2>&1
+  # Ensure log file path exists
+  mkdir -p "$(dirname "$RUN_LOG_FILE")" >/dev/null 2>&1 || true
+  : >"$RUN_LOG_FILE" 2>/dev/null || true
+
+  # Layer 1 structured log always writes here (plain text)
+  logging_set_layer1_file "$RUN_LOG_FILE"
+
+  # Optional: also capture full stdout/stderr into the same file.
+  # Only tee when stdout is a real TTY to avoid dialog/process-substitution issues.
+  if [[ -z "${HOMELAB_NO_TEE:-}" ]]; then
+    if [[ -t 1 ]]; then
+      exec > >(tee -a "$RUN_LOG_FILE") 2>&1
+    else
+      exec >>"$RUN_LOG_FILE" 2>&1
+    fi
   else
     exec >>"$RUN_LOG_FILE" 2>&1
   fi
@@ -39,6 +51,7 @@ run_init() {
   trap 'run_on_error $? $LINENO' ERR
   trap 'run_on_exit' EXIT
 }
+
 
 run_on_error() {
   local code line

@@ -27,3 +27,4 @@ terraform/*.tfstate*
 # Local-only files
 .local/.homelab_repo_root
 .homelab_repo_root
+t.sh

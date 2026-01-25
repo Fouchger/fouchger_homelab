@@ -62,19 +62,24 @@ action_run_questionnaires() {
 }
 
 action_validate_configuration() {
-  local tmp title rc
-  tmp="$(ui_tmpfile validate_configuration)"
+  # Run validation with live output so operators can see progress, and avoid
+  # ANSI escapes appearing when output is captured/rendered in dialog.
+  local rc_file rc
+  rc_file="$(ui_tmpfile validate_configuration_rc)"
 
-  "${REPO_ROOT}/scripts/core/validate.sh" >"${tmp}" 2>&1
-  rc=$?
+  ui_programbox \
+    "Validate configuration" \
+    "NO_COLOR=1 \"${REPO_ROOT}/scripts/core/validate.sh\"" \
+    "${rc_file}"
 
-  if (( rc == 0 )); then
-    title="Validation report (pass)"
+  rc="$(cat "${rc_file}" 2>/dev/null || echo 0)"
+  rm -f -- "${rc_file}" || true
+
+  if [[ "${rc}" == "0" ]]; then
+    ui_msgbox "Validation" "Completed successfully."
   else
-    title="Validation report (fail)"
+    ui_msgbox "Validation" "Completed with issues (exit code ${rc}).\n\nReview the run log for details."
   fi
-
-  ui_textbox "${title}" "${tmp}" || true
   return 0
 }
 

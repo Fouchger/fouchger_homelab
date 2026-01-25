@@ -230,3 +230,59 @@ ui_textbox() {
     --cr-wrap \
     --textbox "${file}" "${height}" "${width}"
 }
+
+# =============================================================================
+# Function: ui_programbox
+# Created : 2026-01-25
+# Purpose : Stream live command output inside dialog, giving visible progress.
+#
+# Notes:
+# - Uses dialog --programbox so operators see continuous output.
+# - Wraps the command in bash -lc for predictable PATH/expansion.
+# - Captures the command exit code to a provided file when requested.
+# =============================================================================
+ui_programbox() {
+  local title="${1:-Running}"; shift || true
+  local cmd="${1:-}"; shift || true
+  local rc_file="${1:-}"
+
+  ui_init
+
+  if [[ -z "${cmd}" ]]; then
+    ui_msgbox "Error" "ui_programbox: no command provided"
+    return 0
+  fi
+
+  # Determine dialog binary
+  local dlg="${DIALOG_BIN:-dialog}"
+  command -v "${dlg}" >/dev/null 2>&1 || {
+    echo "ui_programbox: dialog not found" >&2
+    return 1
+  }
+
+  # Terminal sizing (fallbacks included)
+  local lines cols height width
+  lines="$(tput lines 2>/dev/null || echo 24)"
+  cols="$(tput cols 2>/dev/null || echo 80)"
+  height=$(( lines - 4 ))
+  width=$(( cols - 6 ))
+  (( height < 15 )) && height=15
+  (( width < 60 )) && width=60
+
+  # If rc_file is set, write the command exit code there for the caller.
+  local wrapped
+  if [[ -n "${rc_file}" ]]; then
+    wrapped="${cmd}; rc=\$?; printf '%s' \"\$rc\" >\"${rc_file}\"; exit \$rc"
+  else
+    wrapped="${cmd}"
+  fi
+
+  # Use --prgbox so the command is executed as a real program (args separated)
+  # and the UI does not render the command string as content.
+  ui_run --clear \
+    --backtitle "${UI_BACKTITLE:-fouchger_homelab}" \
+    --title "${title}" \
+    --prgbox "Running..." \
+    "${height}" "${width}" \
+    bash -lc "${wrapped}" || true
+}
