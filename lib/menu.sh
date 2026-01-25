@@ -32,8 +32,8 @@ app_manager_menu() {
       3 "Change selections" \
       4 "Apply install/uninstall" \
       5 "Edit version pins" \
-      7 "check which apps are installed" \
-      6 "Back"
+      6 "Check which apps are installed" \
+      7 "Back"
 
     [[ -n "${choice}" ]] || return 0
 
@@ -43,8 +43,8 @@ app_manager_menu() {
       3) run_checklist ;;
       4) apply_changes ;;
       5) edit_version_pins ;;
-      7) audit_selected_apps ;;
-      6) return 0 ;;
+      6) audit_selected_apps ;;
+      7) return 0 ;;
     esac
   done
 }
@@ -119,14 +119,16 @@ workflows_menu() {
   while true; do
     local choice=""
     ui_menu "Workflows" "Choose a workflow:" choice \
-      1 "Run questionnaires" \
-      2 "Back"
+      1 "Validate configuration" \
+      2 "Run questionnaires" \
+      3 "Back"
 
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) action_run_questionnaires ;;
-      2) return 0 ;;
+      1) action_validate_configuration ;;
+      2) action_run_questionnaires ;;
+      3) return 0 ;;
       *) return 0 ;;
     esac
   done
@@ -210,7 +212,7 @@ documentation_menu() {
     [[ -n "${choice}" ]] || return 0
 
     case "${choice}" in
-      1) make preflight ;;
+      1) make docs-preflight ;;
       2) make docs ;;
       3) make docs-clean ;;
       4) return 0 ;;
