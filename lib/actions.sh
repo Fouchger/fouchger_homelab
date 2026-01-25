@@ -11,7 +11,7 @@
 # Notes
 #   - Avoid placing dialog UI menu structure here. Keep that in lib/menu.sh
 # =============================================================================
-echo "lib/actions.sh"
+
 set -Eeuo pipefail
 IFS=$'\n\t'
 

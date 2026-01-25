@@ -2,27 +2,42 @@
 # -----------------------------------------------------------------------------
 # Filename: lib/logging.sh
 # Created: 2026-01-11
-# Updated: 2026-01-23
-# Description: Catppuccin-themed logging helpers for Bash scripts.
+# Updated: 2026-01-25
+# Description:
+#   Two-layer logging helpers for Bash scripts.
+#
+#   Layer 1: Structured operator log (enabled)
+#     - Consistent timestamps and levels
+#     - Optional Catppuccin colours for terminal output
+#     - Optional clean, line-oriented log file for operations and grepping
+#
+#   Layer 2: Session capture (planned)
+#     - Full terminal session recording for menu/curses-hidden output
+#     - Implemented separately so Layer 1 stays reliable and uncluttered
+#
 # Usage:
 #   source "${REPO_ROOT}/lib/logging.sh"
+#   logging_set_layer1_file "${LOG_DIR}/run.clean.log"
 #   info "message"; warn "message"; error "message"; ok "message"
-#   logging_set_files "${LOG_DIR_DEFAULT}/run.clean.log" "${LOG_DIR_DEFAULT}/run.raw.log"
-#   logging_begin_capture   # optional stdout/stderr capture
-# Notes:
-#   - Set CATPPUCCIN_FLAVOUR to LATTE, FRAPPE, MACCHIATO, or MOCHA.
-#   - Set NO_COLOR to disable colours.
-#   - Capture writes a raw log (faithful stream) and an optional cleaned log
-#     with terminal control codes stripped.
+#
+# Compatibility notes:
+#   - logging_set_files is retained as a thin wrapper over Layer 1.
+#   - logging_begin_capture/logging_end_capture are intentionally no-ops for now.
+#     They are kept to avoid hard failures if older code calls them.
+#
 # Maintainer: Gert
 # Contributors: ddployrr project contributors
 # -----------------------------------------------------------------------------
-echo "lib/logging.sh"
+
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# =============================================================================
+# Layer 1: Structured operator log
+# =============================================================================
+
 # -----------------------------------------------------------------------------
-# Colour helpers
+# Colour helpers (Catppuccin)
 # -----------------------------------------------------------------------------
 uc() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
 
@@ -113,41 +128,70 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# File targets (optional)
+# Layer 1 file target
 # -----------------------------------------------------------------------------
-LOG_FILE_CLEAN=""
-LOG_FILE_RAW=""
+LOG_FILE_LAYER1=""
 
-logging_set_files() {
-  # $1 = clean log, $2 = raw log (optional; defaults to clean log)
-  LOG_FILE_CLEAN="${1:-}"
-  LOG_FILE_RAW="${2:-${1:-}}"
+logging_set_layer1_file() {
+  # $1 = path to Layer 1 log file (clean, line-oriented)
+  LOG_FILE_LAYER1="${1:-}"
 }
 
-logging__strip_ansi() {
-  # Conservative stripping of common ANSI escapes and control characters.
-  sed -r \
-    -e 's/\x1B\[[0-9;?]*[ -/]*[@-~]//g' \
-    -e 's/\x1B\][0-9;]*[^\a]*(\x07|\x1B\\)//g' \
-    -e 's/\r//g' \
-    -e 's/[\x00-\x08\x0B\x0C\x0E-\x1F]//g'
+logging_rotate_file() {
+  # Rotate a log file into a backup directory, keeping a fixed number of backups.
+  #
+  # Arguments:
+  #   $1 = log file path
+  #   $2 = backup directory (e.g. "$(dirname "$1")/backup")
+  #   $3 = number of backups to keep (default 5)
+  #
+  # Behaviour:
+  #   - If the log file does not exist or is empty, no rotation occurs.
+  #   - Moves the existing file to the backup directory with an ISO timestamp.
+  #   - Retains only the newest N rotated files.
+  local log_file="${1:-}"
+  local backup_dir="${2:-}"
+  local keep="${3:-5}"
+
+  [[ -n "$log_file" && -n "$backup_dir" ]] || return 0
+  [[ -f "$log_file" ]] || return 0
+  [[ -s "$log_file" ]] || return 0
+
+  mkdir -p "$backup_dir" >/dev/null 2>&1 || true
+
+  local base ts rotated
+  base="$(basename "$log_file")"
+  ts="$(date -Is | tr ':' '-')"
+  rotated="${backup_dir}/${base}.${ts}.bak"
+
+  mv -f -- "$log_file" "$rotated" 2>/dev/null || return 0
+  : >"$log_file" 2>/dev/null || true
+
+  # Prune old backups (newest first, keep N)
+  local n=0
+  local f
+  while IFS= read -r f; do
+    n=$((n + 1))
+    if [[ "$n" -gt "$keep" ]]; then
+      rm -f -- "$f" >/dev/null 2>&1 || true
+    fi
+  done < <(ls -1t "${backup_dir}/${base}."*.bak 2>/dev/null || true)
 }
 
-_log_to_file() {
-  local line="$1" target
-  for target in "$LOG_FILE_RAW" "$LOG_FILE_CLEAN"; do
-    [[ -n "$target" ]] || continue
-    mkdir -p "$(dirname "$target")" >/dev/null 2>&1 || true
-    printf '%s\n' "$line" >>"$target" 2>/dev/null || true
-  done
+logging__layer1_write_file() {
+  local line="$1"
+  [[ -n "$LOG_FILE_LAYER1" ]] || return 0
+  mkdir -p "$(dirname "$LOG_FILE_LAYER1")" >/dev/null 2>&1 || true
+  printf '%s\n' "$line" >>"$LOG_FILE_LAYER1" 2>/dev/null || true
 }
 
-_log() {
+logging__layer1_emit() {
   local colour="$1" label="$2"; shift 2
   local ts msg
   ts="$(date -Is)"
   msg="${ts} [${label}] $*"
-  _log_to_file "$msg"
+
+  logging__layer1_write_file "$msg"
 
   if [[ -n "${NO_COLOR:-}" ]]; then
     printf '[%s] %s\n' "$label" "$*"
@@ -156,51 +200,43 @@ _log() {
   fi
 }
 
-info()  { _log BLUE  'ℹ️ INFO'  "$*"; }
-warn()  { _log PEACH '⚠️ WARN'  "$*"; }
-error() { _log RED   '✖ ERROR' "$*"; }
-ok()    { _log GREEN '✔ OK'    "$*"; }
+info()  { logging__layer1_emit BLUE  'ℹ️ INFO'  "$*"; }
+warn()  { logging__layer1_emit PEACH '⚠️ WARN'  "$*"; }
+error() { logging__layer1_emit RED   '✖ ERROR' "$*"; }
+ok()    { logging__layer1_emit GREEN '✔ OK'    "$*"; }
 
 # -----------------------------------------------------------------------------
-# Optional capture of current process stdout/stderr
+# Post-processing helper (use after capture)
 # -----------------------------------------------------------------------------
+logging_strip_ansi_stream() {
+  # Notes:
+  #   - Conservative stripping of common ANSI escapes and control characters.
+  #   - Use for post-processing captured logs, not for live menu capture.
+  sed -r \
+    -e 's/\x1B\[[0-9;?]*[ -/]*[@-~]//g' \
+    -e 's/\x1B\][0-9;]*[^\a]*(\x07|\x1B\\)//g' \
+    -e 's/\r//g' \
+    -e 's/[\x00-\x08\x0B\x0C\x0E-\x1F]//g'
+}
+
+# =============================================================================
+# Compatibility shims (temporary)
+# =============================================================================
+
+logging_set_files() {
+  # Backwards compatible wrapper.
+  # Previous behaviour supported clean + raw logs; for Layer 1 we use a single
+  # line-oriented file.
+  logging_set_layer1_file "${1:-}"
+}
+
 logging_begin_capture() {
-  # Captures output and appends to LOG_FILE_RAW (and LOG_FILE_CLEAN if set).
-  # NOTE: This affects the current shell process; use with care.
-  [[ -n "$LOG_FILE_RAW" ]] || return 0
-
-  exec 3>&1 4>&2
-
-  local raw="$LOG_FILE_RAW" clean="$LOG_FILE_CLEAN"
-  mkdir -p "$(dirname "$raw")" >/dev/null 2>&1 || true
-  touch "$raw" >/dev/null 2>&1 || true
-
-  if [[ -n "$clean" && "$clean" != "$raw" ]]; then
-    mkdir -p "$(dirname "$clean")" >/dev/null 2>&1 || true
-    touch "$clean" >/dev/null 2>&1 || true
-  fi
-
-  if command -v stdbuf >/dev/null 2>&1; then
-    if [[ -n "$clean" && "$clean" != "$raw" ]]; then
-      exec > >(stdbuf -oL -eL tee -a "$raw" | stdbuf -oL -eL logging__strip_ansi | tee -a "$clean") \
-           2> >(stdbuf -oL -eL tee -a "$raw" >&2 | stdbuf -oL -eL logging__strip_ansi | tee -a "$clean" >&2)
-    else
-      exec > >(stdbuf -oL -eL tee -a "$raw") 2> >(stdbuf -oL -eL tee -a "$raw" >&2)
-    fi
-  else
-    if [[ -n "$clean" && "$clean" != "$raw" ]]; then
-      exec > >(tee -a "$raw" | logging__strip_ansi | tee -a "$clean") \
-           2> >(tee -a "$raw" >&2 | logging__strip_ansi | tee -a "$clean" >&2)
-    else
-      exec > >(tee -a "$raw") 2> >(tee -a "$raw" >&2)
-    fi
-  fi
-
-  _log_to_file "$(date -Is) [CAPTURE] begin"
+  # Layer 2 will replace this approach. Keeping as a no-op prevents older code
+  # from failing hard.
+  :
 }
 
 logging_end_capture() {
-  _log_to_file "$(date -Is) [CAPTURE] end"
-  exec 1>&3 2>&4
-  exec 3>&- 4>&-
+  # No-op; see logging_begin_capture.
+  :
 }

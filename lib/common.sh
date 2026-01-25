@@ -19,7 +19,7 @@
 #   - Error handling prefers UI helpers (ui_error/ui_warn/ui_info) when present.
 #   - Marker file: .homelab_repo_root (created at repo root and ignored by git).
 # -----------------------------------------------------------------------------
-echo "lib/common.sh"
+
 # Guardrail: prevent double-sourcing.
 if [[ -n "${_HOMELAB_COMMON_SOURCED:-}" ]]; then
   return 0

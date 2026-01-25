@@ -203,14 +203,19 @@ validate_key() {
 key_to_var() { printf 'APP_%s' "${1^^}" | tr '-' '_' | tr '.' '_'; }
 
 apm_init_paths() {
-  mkdir -p "${APPM_DIR}" "${ENV_BACKUP_DIR}" >/dev/null 2>&1 || true
+  mkdir -p "${APPM_DIR}" "${ENV_BACKUP_DIR}" "${APPM_DIR}/backup" >/dev/null 2>&1 || true
+
+  # Layer 1 log rotation: keep the latest 5 backups under ${APPM_DIR}/backup.
+  # This preserves disk space while keeping enough history for troubleshooting.
+  logging_rotate_file "${LOG_FILE}" "${APPM_DIR}/backup" 5
   touch "${LOG_FILE}" >/dev/null 2>&1 || true
+  logging_set_layer1_file "${LOG_FILE}"
 }
 
 log_line() {
-  local msg
-  msg="$(date -Is) $*"
-  printf '%s\n' "${msg}" >>"${LOG_FILE}" 2>/dev/null || true
+  # Compatibility shim: older code paths still call log_line.
+  # Route into Layer 1 structured logging so everything lands in one place.
+  info "$*"
 }
 
 backup_env_file() {
@@ -1892,10 +1897,8 @@ apply_changes() {
 
   apm_init_paths
 
-  # Ensure lib/logging is in use and logging goes to this file
-  logging_set_files "${LOG_FILE}"
-  logging_begin_capture "${LOG_FILE}"
-  trap 'logging_end_capture' RETURN
+  # Layer 1 logging only (structured operator log)
+  logging_set_layer1_file "${LOG_FILE}"
 
   info "Apply started. Log file: ${LOG_FILE}"
 

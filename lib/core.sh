@@ -11,7 +11,7 @@
 #   - Keep bash 4+ compatible.
 #   - Avoid non-POSIX flags.
 # -----------------------------------------------------------------------------
-echo "lib/core.sh"
+
 set -Eeuo pipefail
 IFS=$'\n\t'
 
