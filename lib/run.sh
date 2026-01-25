@@ -14,6 +14,18 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# Defensive sourcing: allow callers to source lib/run.sh directly.
+# Prefer repo helpers if they are not already loaded.
+if ! declare -F ensure_dirs >/dev/null 2>&1 || [[ -z "${LOG_DIR_DEFAULT:-}" ]]; then
+  # shellcheck source=lib/paths.sh
+  source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/paths.sh"
+fi
+
+if ! declare -F logging_set_layer1_file >/dev/null 2>&1; then
+  # shellcheck source=lib/logging.sh
+  source "${REPO_ROOT}/lib/logging.sh"
+fi
+
 RUN_ID=""
 RUN_LOG_FILE=""
 

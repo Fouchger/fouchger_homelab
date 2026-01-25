@@ -35,7 +35,7 @@ source "${REPO_ROOT}/lib/state.sh"
 run_init "validate"
 state_init
 
-STATE_ENV="${HOME}/.config/fouchger_homelab/state.env"
+STATE_ENV="${STATE_DIR_DEFAULT:-${HOME}/.config/fouchger_homelab}/state.env"
 # shellcheck disable=SC1090
 [[ -r "${STATE_ENV}" ]] && source "${STATE_ENV}" || true
 

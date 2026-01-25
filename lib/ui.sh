@@ -31,10 +31,17 @@ IFS=$'\n\t'
 : "${UI_MSG_HEIGHT:=12}"
 : "${UI_MSG_WIDTH:=80}"
 
-: "${UI_STATE_DIR:=/tmp/fouchger_homelab_ui}"
+# Menu runtime state (temp files, rc files, etc.). Prefer the repo-defined UI_DIR
+# from lib/paths.sh so all operational artefacts are managed by ensure_dirs().
+: "${UI_STATE_DIR:=${UI_DIR:-${STATE_DIR:-${STATE_DIR_DEFAULT:-$HOME/.config/fouchger_homelab/state}}/ui}}"
 
 ui_init() {
-  mkdir -p "${UI_STATE_DIR}" >/dev/null 2>&1 || true
+  # Ensure standard directories exist (logs/state/ui), if available.
+  if declare -F ensure_dirs >/dev/null 2>&1; then
+    ensure_dirs >/dev/null 2>&1 || true
+  else
+    mkdir -p "${UI_STATE_DIR}" >/dev/null 2>&1 || true
+  fi
   export TERM="${TERM:-xterm-256color}"
 
   # Ensure consistent look and feel:

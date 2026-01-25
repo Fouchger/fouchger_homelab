@@ -117,6 +117,11 @@ LOG_DIR_DEFAULT="${LOG_DIR_DEFAULT:-$STATE_DIR_DEFAULT/logs}"
 STATE_DIR="${STATE_DIR:-$STATE_DIR_DEFAULT/state}"
 BIN_DIR="${BIN_DIR:-$STATE_DIR_DEFAULT/bin}"
 
+# UI/runtime scratch (menu temp files, return codes, etc.).
+# Kept under STATE_DIR so all operational artefacts live in a single, known
+# location managed by ensure_dirs().
+UI_DIR="${UI_DIR:-$STATE_DIR/ui}"
+
 APPM_DIR="${STATE_DIR_DEFAULT}/app_manager"
 ENV_BACKUP_DIR="${APPM_DIR}/.backups"
 
@@ -128,6 +133,7 @@ ensure_dirs() {
     "$STATE_DIR_DEFAULT" \
     "$STATE_DIR" \
     "$BIN_DIR" \
+    "$UI_DIR" \
     "$APPM_DIR" \
     "$ENV_BACKUP_DIR" \
     "$MARKER_DIR"
