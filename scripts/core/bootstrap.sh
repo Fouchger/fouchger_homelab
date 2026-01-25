@@ -13,14 +13,15 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# shellcheck source=lib/paths.sh
-source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)/lib/paths.sh"
-# shellcheck source=lib/logging.sh
-source "${REPO_ROOT}/lib/logging.sh"
-# shellcheck source=lib/core.sh
-source "${REPO_ROOT}/lib/core.sh"
-# shellcheck source=lib/run.sh
-source "${REPO_ROOT}/lib/run.sh"
+# Consistent module loading policy:
+# - Scripts anchor REPO_ROOT off their own location.
+# - Scripts source lib/modules.sh, then call homelab_load_lib.
+REPO_ROOT="${REPO_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
+export REPO_ROOT
+
+# shellcheck source=lib/modules.sh
+source "${REPO_ROOT}/lib/modules.sh"
+homelab_load_lib
 
 run_init "bootstrap"
 

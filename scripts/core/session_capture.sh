@@ -28,8 +28,7 @@ export REPO_ROOT
 source "${REPO_ROOT}/lib/modules.sh"
 homelab_load_lib
 
-# shellcheck source=lib/state.sh
-source "${REPO_ROOT}/lib/state.sh"
+# state_* helpers are loaded via homelab_load_lib
 
 cmd="${1:-status}"
 

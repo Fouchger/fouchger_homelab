@@ -31,17 +31,19 @@ IFS=$'\n\t'
 : "${UI_MSG_HEIGHT:=12}"
 : "${UI_MSG_WIDTH:=80}"
 
-# Menu runtime state (temp files, rc files, etc.). Prefer the repo-defined UI_DIR
-# from lib/paths.sh so all operational artefacts are managed by ensure_dirs().
-: "${UI_STATE_DIR:=${UI_DIR:-${STATE_DIR:-${STATE_DIR_DEFAULT:-$HOME/.config/fouchger_homelab/state}}/ui}}"
+# UI runtime files should live under the managed folder tree (see lib/paths.sh).
+# Fallback to /tmp only if paths are not available (for standalone sourcing).
+: "${UI_STATE_DIR:=${UI_DIR:-/tmp/fouchger_homelab_ui}}"
 
 ui_init() {
-  # Ensure standard directories exist (logs/state/ui), if available.
+  # Prefer centralised directory creation where available.
   if declare -F ensure_dirs >/dev/null 2>&1; then
     ensure_dirs >/dev/null 2>&1 || true
   else
     mkdir -p "${UI_STATE_DIR}" >/dev/null 2>&1 || true
   fi
+
+  mkdir -p "${UI_STATE_DIR}" >/dev/null 2>&1 || true
   export TERM="${TERM:-xterm-256color}"
 
   # Ensure consistent look and feel:

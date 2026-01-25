@@ -203,11 +203,11 @@ validate_key() {
 key_to_var() { printf 'APP_%s' "${1^^}" | tr '-' '_' | tr '.' '_'; }
 
 apm_init_paths() {
-  mkdir -p "${APPM_DIR}" "${ENV_BACKUP_DIR}" "${APPM_DIR}/backup" >/dev/null 2>&1 || true
+  mkdir -p "${APPM_DIR}" "${ENV_BACKUP_DIR}" "${APPM_DIR}/.backups" >/dev/null 2>&1 || true
 
-  # Layer 1 log rotation: keep the latest 5 backups under ${APPM_DIR}/backup.
+  # Layer 1 log rotation: keep the latest 5 backups under ${APPM_DIR}/.backups.
   # This preserves disk space while keeping enough history for troubleshooting.
-  logging_rotate_file "${LOG_FILE}" "${APPM_DIR}/backup" 5
+  logging_rotate_file "${LOG_FILE}" "${APPM_DIR}/.backups" 5
   touch "${LOG_FILE}" >/dev/null 2>&1 || true
   logging_set_layer1_file "${LOG_FILE}"
 }
