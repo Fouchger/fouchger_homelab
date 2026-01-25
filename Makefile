@@ -109,3 +109,47 @@ mikrotik.start_config.install: ## Install local MikroTik start config into ~/.co
 .PHONY: mikrotik.start_config.apply
 mikrotik.start_config.apply: ## Apply local MikroTik start config to the router (opt-in)
 	@scripts/mikrotik/apply-start-config.sh
+
+# -----------------------------------------------------------------------------
+# Filename: Makefile (snippet)
+# Description: Documentation targets for generating manuals and diagrams
+# Usage:
+#	make preflight 		: Install required python libraries
+#   make docs			: Generate documentation
+#   make docs-clean		: Clear document creation data
+# Notes:
+#   - Expects the script at: docs/tools/generate_manuals.py
+#   - Outputs into: docs/generated/
+#   - PDF export is optional and requires LibreOffice (soffice) to be installed.
+# -----------------------------------------------------------------------------
+
+.PHONY: docs-preflight
+docs-preflight:
+	@bash docs/tools/docs-preflight.sh
+
+
+.PHONY: docs docs-clean docs-open
+DOCS_SCRIPT := docs/tools/generate_manuals.py
+DOCS_OUT    := docs/generated
+REPO_ROOT   := $(CURDIR)
+
+docs:
+	@echo "==> Generating manuals into $(DOCS_OUT)"
+	@mkdir -p "$(DOCS_OUT)"
+	@python3 "$(DOCS_SCRIPT)" --repo "$(REPO_ROOT)" --out "$(DOCS_OUT)"
+	@echo "==> Done. Outputs:"
+	@echo "    - $(DOCS_OUT)/Fouchger_Homelab_User_Manual.docx"
+	@echo "    - $(DOCS_OUT)/Fouchger_Homelab_Developer_Manual.docx"
+	@echo "    - $(DOCS_OUT)/Fouchger_Homelab_Runbook.docx"
+	@echo "    - $(DOCS_OUT)/manual_assets/*.png"
+	@echo "    - $(DOCS_OUT)/manual_out/*.pdf (if LibreOffice is installed)"
+
+docs-clean:
+	@echo "==> Removing generated documentation in $(DOCS_OUT)"
+	@rm -rf "$(DOCS_OUT)"
+
+docs-open:
+	@echo "==> Opening generated docs folder (best effort)"
+	@if command -v xdg-open >/dev/null 2>&1; then xdg-open "$(DOCS_OUT)"; \
+	elif command -v open >/dev/null 2>&1; then open "$(DOCS_OUT)"; \
+	else echo "No folder opener found. Path: $(DOCS_OUT)"; fi

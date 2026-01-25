@@ -14,9 +14,15 @@ if [[ -z "${REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fi
 
-#-----------------------------------------------------------------------------
+#=============================================================================
 # Sub Menu Setup
-#-----------------------------------------------------------------------------
+#=============================================================================
+
+#------------------------
+# Main Menu Option:   2 "Bootstrap Development Server (admin01)"
+# Sub Menu:           bootstrap_dev_server_menu() - "Bootstrap Development Server"
+# Option:             2 "Bootstrap server - Configs and Setup"
+#------------------------
 app_manager_menu() {
   while true; do
     local choice=""
@@ -43,6 +49,9 @@ app_manager_menu() {
   done
 }
 
+#------------------------
+# Main Menu Option:   2 "Bootstrap Development Server (admin01)"
+#------------------------
 bootstrap_dev_server_menu() {
   while true; do
     local choice=""
@@ -64,6 +73,9 @@ bootstrap_dev_server_menu() {
   done
 }
 
+#------------------------
+# Main Menu Option:   3 "Infrastructure"
+#------------------------
 infrastructure_menu() {
   while true; do
     local choice=""
@@ -100,6 +112,9 @@ To enable:
   done
 }
 
+#------------------------
+# Main Menu Option:   4 "Workflows"
+#------------------------
 workflows_menu() {
   while true; do
     local choice=""
@@ -117,9 +132,9 @@ workflows_menu() {
   done
 }
 
-#-----------------------------------------------------------------------------
-# Debug Menu
-#-----------------------------------------------------------------------------
+#------------------------
+# Main Menu Option:   5 "Debug"
+#------------------------
 debug_menu() {
   while true; do
     local choice=""
@@ -180,6 +195,30 @@ debug_menu() {
   done
 }
 
+#------------------------
+# Main Menu Option:   6 "Generate Project Documentation"
+#------------------------
+documentation_menu() {
+  while true; do
+    local choice=""
+    ui_menu "Generate Project Documentation" "Choose an action:" choice \
+      1 "Install required python libraries" \
+      2 "Generate documentation" \
+      3 "Clear document creation data" \
+      4 "Back"
+
+    [[ -n "${choice}" ]] || return 0
+
+    case "${choice}" in
+      1) make preflight ;;
+      2) make docs ;;
+      3) make docs-clean ;;
+      4) return 0 ;;
+      *) return 0 ;;
+    esac
+  done
+}
+
 #-----------------------------------------------------------------------------
 # Main Menu Setup
 #-----------------------------------------------------------------------------
@@ -194,7 +233,8 @@ main_menu() {
       3 "Infrastructure" \
       4 "Workflows" \
       5 "Debug" \
-      6 Exit
+      6 "Generate Project Documentation" \
+      7 Exit
 
     [[ -n "${choice}" ]] || break
 
@@ -204,7 +244,8 @@ main_menu() {
       3) infrastructure_menu ;;
       4) workflows_menu ;;
       5) debug_menu ;;
-      6) break ;;
+      6) documentation_menu ;; 
+      7) break ;;
       *) break ;;
     esac
   done
