@@ -110,8 +110,16 @@ get_rgb() {
 }
 
 _supports_colour() {
+  # Never colourise if user explicitly disabled it
   [[ -n "${NO_COLOR:-}" ]] && return 1
+
+  # Only colourise when stdout is an interactive terminal
+  [[ -t 1 ]] || return 1
+
+  # If truecolour is explicitly available, use it
   [[ "${COLORTERM:-}" == "truecolor" || "${COLORTERM:-}" == "24bit" ]] && return 0
+
+  # Fallback: basic terminal colour capability
   command -v tput >/dev/null 2>&1 || return 1
   local colours
   colours="$(tput colors 2>/dev/null || echo 0)"
