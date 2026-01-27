@@ -23,6 +23,39 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# -----------------------------------------------------------------------------
+# Bootstrapping
+#
+# This module is typically sourced by bin/homelab (after lib/modules.sh has
+# loaded lib/ui.sh, lib/logging.sh, lib/paths.sh, etc.).
+#
+# However operators also run it directly during development and troubleshooting.
+# In that scenario, we self-bootstrap the project libraries so functions like
+# ui_msgbox and variables like APPM_DIR exist.
+# -----------------------------------------------------------------------------
+
+_apm_repo_root() {
+  # scripts/app_manager/app_manager.sh -> <repo>
+  local d
+  d="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+  printf '%s' "$d"
+}
+
+_apm_bootstrap_project_libs() {
+  # If UI helpers are missing, we are almost certainly being run standalone.
+  if ! declare -F ui_msgbox >/dev/null 2>&1; then
+    local root
+    root="${REPO_ROOT:-$(_apm_repo_root)}"
+    export REPO_ROOT="$root"
+
+    # shellcheck disable=SC1091
+    source "${REPO_ROOT}/lib/modules.sh"
+    homelab_load_lib
+  fi
+}
+
+_apm_bootstrap_project_libs
+
 _apm_this_dir() {
   cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
 }
