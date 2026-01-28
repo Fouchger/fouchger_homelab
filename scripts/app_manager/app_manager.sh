@@ -30,6 +30,12 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # =============================================================================
+# Sub Modules
+# =============================================================================
+source "${REPO_ROOT}/scripts/app_manager/lib/profiles.sh"
+source "${REPO_ROOT}/scripts/app_manager/lib/profiles.sh"
+
+# =============================================================================
 # Paths and constants
 # =============================================================================
 # see lib/paths.sh for folders
@@ -62,129 +68,6 @@ SOPS_VERSION="${SOPS_VERSION:-latest}"
 PYTHON_TARGET="${PYTHON_TARGET:-system}"                 # system | pyenv | 3.13 | 3.13.1 | 3.14 ...
 PYENV_PYTHON_VERSION="${PYENV_PYTHON_VERSION:-3.13.1}"   # used when PYTHON_TARGET=pyenv
 
-# =============================================================================
-# Application catalogue
-# Format (TYPE|...):
-#   HEADING|<text>
-#   BLANK|<text>
-#   APP|<key>|<label>|<default:ON/OFF>|<packages_csv>|<description>|<strategy>|<version_var>
-# Notes
-#   - packages are CSV (comma-separated), not space-separated
-# =============================================================================
-APP_CATALOGUE=(
-  "HEADING|1. Core System and Operations Tooling"
-  "APP|openssh|[Core] OpenSSH server/client|ON|openssh-server,openssh-client|Remote access|apt|"
-  "APP|sudo|[Core] sudo + coreutils|ON|sudo,coreutils|Privilege escalation and base utilities|apt|"
-  "APP|curl|[Core] curl|ON|curl|HTTP client|apt|"
-  "APP|wget|[Core] wget|ON|wget|Downloader|apt|"
-  "APP|rsync|[Core] rsync|ON|rsync|File synchronisation|apt|"
-  "APP|tmux|[Core] tmux|ON|tmux|Terminal multiplexer|apt|"
-  "APP|htop|[Core] htop|ON|htop|Process viewer|apt|"
-  "APP|btop|[Core] btop (alternative)|OFF|btop|Modern process viewer|apt|"
-  "APP|chrony|[Core] chrony|ON|chrony|Time synchronisation|apt|"
-  "APP|logrotate|[Core] logrotate|ON|logrotate|Log rotation|apt|"
-
-  "BLANK| "
-  "HEADING|2. Package, Build, and Runtime Tooling"
-  "APP|build_essential|[Build] build-essential|OFF|build-essential|Compiler toolchain|apt|"
-  "APP|make|[Build] make|OFF|make|Build automation|apt|"
-  "APP|cmake|[Build] cmake|OFF|cmake|Modern build system|apt|"
-  "APP|git|[Build] git|ON|git|Source control|apt|"
-  "APP|gh|[Build] gh (GitHub CLI)|ON|gh|GitHub CLI tool|github_cli_repo|"
-  "APP|python|[Build] Python tooling (versioned)|OFF|python3,python3-venv,pipx|Python runtime and tooling|python|PYTHON_TARGET"
-
-  # CORRECTION: This installer is NVM-based (per-user). Label + strategy renamed accordingly.
-  # Packages remain empty because NVM installs Node without system packages.
-  # Pin using NVM_NODE_VERSION (e.g. lts/*, v22.16.0) rather than NODESOURCE_NODE_MAJOR.
-  "APP|nodejs|[Build] Node.js (NVM)|OFF||Node.js runtime installed via NVM (per-user)|nvm|"
-
-  "APP|openjdk|[Build] OpenJDK 17|OFF|openjdk-17-jdk|Java runtime|apt|"
-  "APP|golang|[Build] Go|OFF|golang-go|Go language toolchain|apt|"
-
-  "BLANK| "
-  "HEADING|3. Infrastructure and Automation Tools"
-  "APP|ansible|[Infra] Ansible|OFF|ansible|Configuration management|apt|"
-  "APP|terraform|[Infra] Terraform|OFF|terraform|Infrastructure as code|hashicorp_repo|TERRAFORM_VERSION"
-  "APP|packer|[Infra] Packer|OFF|packer|Image automation|hashicorp_repo|PACKER_VERSION"
-  "APP|helm|[Infra] Helm (binary)|OFF||Kubernetes package manager|binary|HELM_VERSION"
-  "APP|kubectl|[Infra] kubectl (binary)|OFF||Kubernetes CLI|binary|KUBECTL_VERSION"
-  "APP|jq|[Infra] jq|ON|jq|JSON processor|apt|"
-  "APP|yq|[Infra] yq (mikefarah, binary)|OFF||YAML processor|yq_binary|YQ_VERSION"
-
-  "BLANK| "
-  "HEADING|4. Containers and Platform Engineering (CLI only)"
-  "APP|docker_cli|[Containers] Docker Engine (get.docker.com)|OFF||Docker Engine via Docker convenience script|docker_script|"
-  "APP|podman_cli|[Containers] Podman CLI|OFF|podman|Rootless container tooling|apt|"
-  "APP|docker_compose|[Containers] docker-compose|OFF|docker-compose|Compose CLI|apt|"
-
-  "BLANK| "
-  "HEADING|5. Databases and Data Services"
-  "APP|postgres|[Data] PostgreSQL|OFF|postgresql|Relational database|apt|"
-  "APP|mysql|[Data] MySQL|OFF|mysql-server|Relational database|apt|"
-  "APP|mariadb|[Data] MariaDB|OFF|mariadb-server|MySQL-compatible database|apt|"
-  "APP|redis|[Data] Redis|OFF|redis-server|In-memory datastore|apt|"
-  "APP|mongodb|[Data] MongoDB Community (mongodb-org)|OFF|mongodb-org|Document database via MongoDB repo|mongodb_repo|MONGODB_SERIES"
-
-  "BLANK| "
-  "HEADING|6. Observability and Diagnostics"
-  "APP|nettools|[Obs] net-tools|OFF|net-tools|Legacy networking tools|apt|"
-  "APP|iproute2|[Obs] iproute2|ON|iproute2|Modern networking tools|apt|"
-  "APP|tcpdump|[Obs] tcpdump|OFF|tcpdump|Packet capture|apt|"
-  "APP|strace|[Obs] strace|OFF|strace|Syscall tracing|apt|"
-  "APP|grafana_alloy|[Obs] Grafana Alloy|OFF|alloy|OpenTelemetry collector distro (Grafana)|grafana_repo|"
-
-  "BLANK| "
-  "HEADING|7. Security and Access Tooling"
-  "APP|gpg|[Sec] GnuPG|ON|gnupg|Encryption and signing|apt|"
-  "APP|pass|[Sec] pass|OFF|pass|Password store|apt|"
-  "APP|vault|[Sec] Vault CLI|OFF|vault|Secrets management|hashicorp_repo|VAULT_VERSION"
-  "APP|age|[Sec] age|OFF|age|Modern encryption|apt|"
-  "APP|sops|[Sec] sops (binary)|OFF||Secrets operations|sops_binary|SOPS_VERSION"
-)
-
-# =============================================================================
-# Profiles (apps)
-# =============================================================================
-PROFILE_BASIC_KEYS=(openssh sudo curl wget rsync tmux htop btop chrony logrotate jq iproute2 gpg git gh)
-PROFILE_DEV_KEYS=( "${PROFILE_BASIC_KEYS[@]}" build_essential make cmake python nodejs openjdk golang )
-PROFILE_AUTOMATION_KEYS=( "${PROFILE_BASIC_KEYS[@]}" ansible terraform packer yq )
-PROFILE_PLATFORM_KEYS=( "${PROFILE_AUTOMATION_KEYS[@]}" helm kubectl docker_cli podman_cli docker_compose tcpdump strace )
-PROFILE_DATABASE_KEYS=( "${PROFILE_BASIC_KEYS[@]}" postgres mysql mariadb redis mongodb )
-PROFILE_OBSERVABILITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" nettools grafana_alloy )
-PROFILE_SECURITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" pass vault age sops )
-
-profile_all_keys_unique() {
-  printf '%s\n' \
-    "${PROFILE_BASIC_KEYS[@]}" \
-    "${PROFILE_DEV_KEYS[@]}" \
-    "${PROFILE_AUTOMATION_KEYS[@]}" \
-    "${PROFILE_PLATFORM_KEYS[@]}" \
-    "${PROFILE_DATABASE_KEYS[@]}" \
-    "${PROFILE_OBSERVABILITY_KEYS[@]}" \
-    "${PROFILE_SECURITY_KEYS[@]}" \
-  | awk 'NF' | sort -u
-}
-mapfile -t PROFILE_ALL_KEYS < <(profile_all_keys_unique)
-
-# =============================================================================
-# Profiles (version pinning)
-# =============================================================================
-PROFILE_BASIC_VERSION_LINES=()
-PROFILE_DEV_VERSION_LINES=( "PYTHON_TARGET=system" "PYENV_PYTHON_VERSION=3.13.1" )
-PROFILE_AUTOMATION_VERSION_LINES=( "TERRAFORM_VERSION=latest" "PACKER_VERSION=latest" "VAULT_VERSION=latest" )
-PROFILE_PLATFORM_VERSION_LINES=(
-  "TERRAFORM_VERSION=latest"
-  "PACKER_VERSION=latest"
-  "VAULT_VERSION=latest"
-  "HELM_VERSION=latest"
-  "KUBECTL_VERSION=latest"
-  "PYTHON_TARGET=system"
-  "PYENV_PYTHON_VERSION=3.13.1"
-)
-PROFILE_DATABASE_VERSION_LINES=()
-PROFILE_OBSERVABILITY_VERSION_LINES=()
-PROFILE_SECURITY_VERSION_LINES=( "VAULT_VERSION=latest" )
-PROFILE_ALL_VERSION_LINES=( "${PROFILE_PLATFORM_VERSION_LINES[@]}" "${PROFILE_SECURITY_VERSION_LINES[@]}" )
 
 # =============================================================================
 # Small helpers
