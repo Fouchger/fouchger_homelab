@@ -53,13 +53,13 @@ homelab_load_lib() {
 
   # UI + framework
   # shellcheck source=lib/ui.sh
-  source "${REPO_ROOT}/lib/ui.sh"
+  source "${REPO_ROOT}/lib/menu/ui.sh"
   # shellcheck source=lib/features.sh
-  source "${REPO_ROOT}/lib/features.sh"
+  source "${REPO_ROOT}/lib/menu/features.sh"
   # shellcheck source=lib/actions.sh
-  source "${REPO_ROOT}/lib/actions.sh"
+  source "${REPO_ROOT}/lib/menu/actions.sh"
   # shellcheck source=lib/menu.sh
-  source "${REPO_ROOT}/lib/menu.sh"
+  source "${REPO_ROOT}/lib/menu/menu.sh"
 
   HOMELAB_LIB_LOADED=1
 }
@@ -71,7 +71,7 @@ homelab_load_modules() {
   [[ -n "${HOMELAB_MODULES_LOADED:-}" ]] && return 0
   # Optional: source feature menus / workflows (best-effort)
   # If a file is missing, we skip it without failing.
-  source_if_exists "${REPO_ROOT}/scripts/core/app_manager.sh"
+  source_if_exists "${REPO_ROOT}/scripts/app_manager/app_manager.sh"
   # source_if_exists "${REPO_ROOT}/scripts/core/questionnaires.sh"
   # source_if_exists "${REPO_ROOT}/scripts/proxmox/templates.sh"
   # source_if_exists "${REPO_ROOT}/scripts/mikrotik/menu.sh"
