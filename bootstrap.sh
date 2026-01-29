@@ -8,8 +8,8 @@
 # ==========================================================
 set -euo pipefail
 
-REPO_URL_DEFAULT="https://github.com/YOURORG/homelab.git"
-BRANCH_DEFAULT="main"
+REPO_URL_DEFAULT="https://github.com/Fouchger/fouchger_homelab.git"
+BRANCH_DEFAULT="rewrite"
 INSTALL_DIR_DEFAULT="${HOME}/homelab"
 
 REPO_URL="${REPO_URL:-$REPO_URL_DEFAULT}"
