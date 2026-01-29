@@ -2,14 +2,17 @@
 # =============================================================================
 # Filename: scripts/app_manager/lib/strategies.sh
 # Created: 28/01/2026
-# Updated: 28/01/2026
+# Updated: 29/01/2026
 # Description: App Manager strategy handlers (install/uninstall) for questionnaire entries.
 #
 # Notes
-#   - This file provides one dispatcher plus one handler per strategy.
-#   - Catalogue provides these fields per app record:
+#   - One dispatcher plus one handler per strategy.
+#   - Catalogue provides fields per app record:
 #       key, label, default, packages_csv, description, strategy, version_var
 #   - Strategies keep catalogue declarative. All prerequisites and repo work happens here.
+#   - Optional integration:
+#       * repo_registry_should_remove <strategy>  (see repo_registry.sh)
+#         If present, uninstall handlers will only remove repo artefacts when safe.
 #   - Conventions:
 #       * Third-party APT keyrings go into /etc/apt/keyrings (mode 0755)
 #       * Third-party APT list files go into /etc/apt/sources.list.d/
@@ -165,6 +168,50 @@ ubuntu_codename() {
   printf '%s' "$codename"
 }
 
+repo_registry_can_remove() {
+  local strategy="$1"
+  if declare -F repo_registry_should_remove >/dev/null 2>&1; then
+    repo_registry_should_remove "$strategy"
+    return $?
+  fi
+  return 0
+}
+
+# -----------------------------------------------------------------------------
+# Public: env validation
+# -----------------------------------------------------------------------------
+strategy_requires_env() {
+  # strategy_requires_env <strategy> <app_key> <version_var_name>
+  local strategy="$1"
+  local app_key="${2:-}"
+  local _version_var_name="${3:-}"
+
+  case "$strategy" in
+    mongodb_repo)
+      [[ -n "${MONGODB_SERIES:-}" ]] || { log_err "Missing env var: MONGODB_SERIES (required for mongodb_repo)"; return 1; }
+      ;;
+    yq_binary)
+      [[ -n "${YQ_VERSION:-}" ]] || { log_err "Missing env var: YQ_VERSION (required for yq_binary)"; return 1; }
+      ;;
+    sops_binary)
+      [[ -n "${SOPS_VERSION:-}" ]] || { log_err "Missing env var: SOPS_VERSION (required for sops_binary)"; return 1; }
+      ;;
+    binary)
+      case "$app_key" in
+        helm)   [[ -n "${HELM_VERSION:-}" ]]   || { log_err "Missing env var: HELM_VERSION (required for helm)"; return 1; } ;;
+        kubectl) [[ -n "${KUBECTL_VERSION:-}" ]] || { log_err "Missing env var: KUBECTL_VERSION (required for kubectl)"; return 1; } ;;
+      esac
+      ;;
+    nvm|python|apt|github_cli_repo|hashicorp_repo|docker_apt_repo|grafana_repo)
+      ;;
+    *)
+      log_err "Unknown strategy for validation: $strategy"
+      return 1
+      ;;
+  esac
+  return 0
+}
+
 # -----------------------------------------------------------------------------
 # Optional run-as-target support (preferred for per-user installers like NVM)
 # If your repo provides run_as_target(), source it before calling strategy_apply.
@@ -281,8 +328,12 @@ strategy_github_cli_repo() {
     uninstall)
       apt_remove_packages "$packages_csv"
       # Optional cleanup: remove repo artefacts.
-      remove_if_exists "$listfile"
-      remove_if_exists "$keyring"
+      if repo_registry_can_remove "github_cli_repo"; then
+        remove_if_exists "$listfile"
+        remove_if_exists "$keyring"
+      else
+        log_info "Keeping GitHub CLI repo artefacts (still in use)."
+      fi
       ;;
 
     *) log_err "Invalid mode '$mode' (github_cli_repo)"; return 1 ;;
@@ -325,8 +376,12 @@ strategy_hashicorp_repo() {
     uninstall)
       apt_remove_packages "$packages_csv"
       # Optional cleanup: remove repo artefacts.
-      remove_if_exists "$listfile"
-      remove_if_exists "$keyring"
+      if repo_registry_can_remove "hashicorp_repo"; then
+        remove_if_exists "$listfile"
+        remove_if_exists "$keyring"
+      else
+        log_info "Keeping HashiCorp repo artefacts (still in use)."
+      fi
       ;;
 
     *) log_err "Invalid mode '$mode' (hashicorp_repo)"; return 1 ;;
@@ -371,9 +426,12 @@ strategy_docker_apt_repo() {
     uninstall)
       apt_remove_packages "$packages_csv"
       # Optional cleanup: remove repo artefacts.
-      remove_if_exists "$listfile"
-      remove_if_exists "$keyring"
-      # Data cleanup is intentionally not done here.
+      if repo_registry_can_remove "docker_apt_repo"; then
+        remove_if_exists "$listfile"
+        remove_if_exists "$keyring"
+      else
+        log_info "Keeping Docker repo artefacts (still in use)."
+      fi
       ;;
 
     *) log_err "Invalid mode '$mode' (docker_apt_repo)"; return 1 ;;
@@ -411,8 +469,11 @@ strategy_grafana_repo() {
 
     uninstall)
       apt_remove_packages "$packages_csv"
-      remove_if_exists "$listfile"
-      remove_if_exists "$keyring"
+      if repo_registry_can_remove "grafana_repo"; then
+        remove_if_exists "$listfile"; remove_if_exists "$keyring"
+      else
+        log_info "Keeping Grafana repo artefacts (still in use)."
+      fi
       ;;
 
     *) log_err "Invalid mode '$mode' (grafana_repo)"; return 1 ;;
@@ -459,8 +520,11 @@ strategy_mongodb_repo() {
 
     uninstall)
       apt_remove_packages "$packages_csv"
-      remove_if_exists "$listfile"
-      remove_if_exists "$keyring"
+      if repo_registry_can_remove "mongodb_repo"; then
+        remove_if_exists "$listfile"; remove_if_exists "$keyring"
+      else
+        log_info "Keeping MongoDB repo artefacts (still in use)."
+      fi
       ;;
 
     *) log_err "Invalid mode '$mode' (mongodb_repo)"; return 1 ;;
@@ -644,34 +708,42 @@ strategy_nvm() {
 
   local node_version="${!version_var_name:-lts/*}"
   local target_user
-  target_user="$(app_mgr_target_user)"
+  local target_user="${APP_MGR_TARGET_USER:-${SUDO_USER:-}}"
+  [[ -n "$target_user" && "$target_user" != "root" ]] || target_user="$(id -un)"
+
+  local run_as_user
+  if declare -F run_as_target >/dev/null 2>&1; then
+    run_as_user() { run_as_target "$target_user" "$@"; }
+  elif command -v sudo >/dev/null 2>&1; then
+    run_as_user() { sudo -u "$target_user" -- "$@"; }
+  else
+    log_err "nvm strategy requires run_as_target or sudo."
+    return 1
+  fi
 
   case "$mode" in
     install)
       ensure_apt_prereqs "curl,ca-certificates"
       log_info "Installing NVM + Node ($node_version) for user: $target_user"
 
-      run_as_user_if_possible "$target_user" bash -lc "
+      run_as_user bash -lc "
         set -Eeuo pipefail
-        export NVM_DIR=\"\$HOME/.nvm\"
-        if [[ ! -d \"\$NVM_DIR\" ]]; then
+        export NVM_DIR="\$HOME/.nvm"
+        if [[ ! -d "\$NVM_DIR" ]]; then
           curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
         fi
         # shellcheck disable=SC1090
-        [[ -s \"\$NVM_DIR/nvm.sh\" ]] && . \"\$NVM_DIR/nvm.sh\"
+        [[ -s "\$NVM_DIR/nvm.sh" ]] && . "\$NVM_DIR/nvm.sh"
         command -v nvm >/dev/null 2>&1
-        nvm install \"$node_version\"
-        nvm alias default \"$node_version\"
+        nvm install "$node_version"
+        nvm alias default "$node_version"
       "
       ;;
 
     uninstall)
       log_info "Removing NVM for user: $target_user"
-      run_as_user_if_possible "$target_user" bash -lc "
-        set -Eeuo pipefail
-        rm -rf \"\$HOME/.nvm\" || true
-      "
-      log_warn "Shell profile cleanup for NVM initialisation lines is not automated."
+      run_as_user bash -lc "rm -rf "\$HOME/.nvm" || true"
+      log_warn "Shell profile cleanup for NVM initialisation lines is not automated understanding your environment."
       ;;
 
     *) log_err "Invalid mode '$mode' (nvm)"; return 1 ;;

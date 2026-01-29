@@ -1,60 +1,33 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Filename: scripts/app_manager/lib/profiles.sh
-# Created: 28/01/2026
-# Updated: 28/01/2026
-# Description: 
+# Filename: scripts/app_manager/lib/profile.sh
+# Created: 29/01/2026
+# Updated: 29/01/2026
+# Description: App Manager profiles (named bundles of apps from app_catalogue.sh).
 #
 # Notes
-#   - 
+#   - Profiles provide a fast way to set selections. Users can still adjust via checklist.
+#   - Profile keys should be stable because they can be stored in state.
 # =============================================================================
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-if [[ -z "${REPO_ROOT:-}" ]]; then
-  REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-fi
-
-# =============================================================================
-# Profiles (apps)
-# =============================================================================
-PROFILE_BASIC_KEYS=(openssh sudo curl wget rsync tmux htop btop chrony logrotate jq iproute2 gpg git gh)
-PROFILE_DEV_KEYS=( "${PROFILE_BASIC_KEYS[@]}" build_essential make cmake python nodejs openjdk golang )
-PROFILE_AUTOMATION_KEYS=( "${PROFILE_BASIC_KEYS[@]}" ansible terraform packer yq )
-PROFILE_PLATFORM_KEYS=( "${PROFILE_AUTOMATION_KEYS[@]}" helm kubectl docker_cli podman_cli docker_compose tcpdump strace )
-PROFILE_DATABASE_KEYS=( "${PROFILE_BASIC_KEYS[@]}" postgres mysql mariadb redis mongodb )
-PROFILE_OBSERVABILITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" nettools grafana_alloy )
-PROFILE_SECURITY_KEYS=( "${PROFILE_BASIC_KEYS[@]}" pass vault age sops )
-
-profile_all_keys_unique() {
-  printf '%s\n' \
-    "${PROFILE_BASIC_KEYS[@]}" \
-    "${PROFILE_DEV_KEYS[@]}" \
-    "${PROFILE_AUTOMATION_KEYS[@]}" \
-    "${PROFILE_PLATFORM_KEYS[@]}" \
-    "${PROFILE_DATABASE_KEYS[@]}" \
-    "${PROFILE_OBSERVABILITY_KEYS[@]}" \
-    "${PROFILE_SECURITY_KEYS[@]}" \
-  | awk 'NF' | sort -u
-}
-mapfile -t PROFILE_ALL_KEYS < <(profile_all_keys_unique)
-
-# =============================================================================
-# Profiles (version pinning)
-# =============================================================================
-PROFILE_BASIC_VERSION_LINES=()
-PROFILE_DEV_VERSION_LINES=( "PYTHON_TARGET=system" "PYENV_PYTHON_VERSION=3.13.1" )
-PROFILE_AUTOMATION_VERSION_LINES=( "TERRAFORM_VERSION=latest" "PACKER_VERSION=latest" "VAULT_VERSION=latest" )
-PROFILE_PLATFORM_VERSION_LINES=(
-  "TERRAFORM_VERSION=latest"
-  "PACKER_VERSION=latest"
-  "VAULT_VERSION=latest"
-  "HELM_VERSION=latest"
-  "KUBECTL_VERSION=latest"
-  "PYTHON_TARGET=system"
-  "PYENV_PYTHON_VERSION=3.13.1"
+declare -gA PROFILES=(
+  ["baseline"]="Bare minimum workstation essentials (Dev + NetAdmin + Proxmox Admin)"
+  ["dev"]="Developer-focused tooling (adds build tools and runtimes)"
+  ["netadmin"]="Network admin tooling (adds deeper diagnostics)"
+  ["proxmox"]="Proxmox and storage admin tooling (adds guestfs and storage tooling)"
+  ["platform"]="Platform engineering tooling (Docker, IaC, Kubernetes CLIs)"
 )
-PROFILE_DATABASE_VERSION_LINES=()
-PROFILE_OBSERVABILITY_VERSION_LINES=()
-PROFILE_SECURITY_VERSION_LINES=( "VAULT_VERSION=latest" )
-PROFILE_ALL_VERSION_LINES=( "${PROFILE_PLATFORM_VERSION_LINES[@]}" "${PROFILE_SECURITY_VERSION_LINES[@]}" )
+
+declare -gA PROFILE_APPS=(
+  ["baseline"]="sudo ca_certs gnupg curl wget zip unzip rsync openssh_client bash_completion less tmux htop chrony logrotate iproute2 dnsutils git jq"
+  ["dev"]="build_essential make cmake git_lfs python openjdk golang gh nodejs"
+  ["netadmin"]="traceroute mtr nettools tcpdump nmap ethtool iperf3 socat whois arp_scan"
+  ["proxmox"]="pve_client libguestfs virt_what lvm2 thin_prov nfs_common cifs_utils smartmontools parted xfsprogs zfsutils"
+  ["platform"]="docker_engine podman_cli ansible terraform packer vault helm kubectl yq sops"
+)
+
+profile_list_keys() { for k in "${!PROFILES[@]}"; do printf '%s\n' "$k"; done | sort; }
+profile_get_description() { local key="$1"; printf '%s' "${PROFILES[$key]:-}"; }
+profile_get_apps() { local key="$1"; printf '%s' "${PROFILE_APPS[$key]:-}"; }
