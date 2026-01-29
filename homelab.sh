@@ -9,6 +9,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+export LOG_LEVEL="INFO"   # TRACE | DEBUG | INFO | WARN | ERROR | FATAL
+
+
 # shellcheck source=/dev/null
 source "${ROOT_DIR}/bin/lib/log.sh"
 # shellcheck source=/dev/null

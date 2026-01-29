@@ -377,53 +377,104 @@ require_cmd() {
 }
 
 # -----------------------------
-# Logging initialisation
+# Logging initialisation + rotation
 # -----------------------------
 # Usage:
-#   init_logging "${ROOT_DIR}/state/logs/homelab.log" [LOG_LEVEL]
+#   init_logging "${ROOT_DIR}/state/logs" [profile] [LOG_LEVEL]
+#
+# Examples:
+#   init_logging "${ROOT_DIR}/state/logs"                "menu" INFO
+#   init_logging "${ROOT_DIR}/state/logs"                "basic" DEBUG
+#   init_logging "${ROOT_DIR}/state/logs"                "" INFO
 #
 # Behaviour:
 #   - Creates log directory if missing
-#   - Sets LOG_FILE (plain text, no ANSI)
-#   - Optionally sets log level (defaults to existing or INFO)
+#   - Per-run log file with timestamp in filename
+#   - Optional profile prefix in filename
+#   - Keeps max 5 most recent log files per profile (or global if profile empty)
+#   - Sets LOG_FILE (plain text, no ANSI) and normalises log level
 #   - Writes a clear session header to the log
 #
+# Files created:
+#   homelab_<profile>_YYYYmmdd_HHMMSS.log   (profile optional)
+#
 init_logging() {
-  local logfile="$1"
-  local level="${2:-${LOG_LEVEL:-INFO}}"
+  local log_dir="$1"
+  local profile="${2:-}"
+  local level="${3:-${LOG_LEVEL:-INFO}}"
+  local keep_max="${LOG_KEEP_MAX:-5}"
 
-  if [[ -z "$logfile" ]]; then
-    echo "init_logging requires a log file path" >&2
+  if [[ -z "$log_dir" ]]; then
+    echo "init_logging requires a log directory path" >&2
     return 1
   fi
 
-  # Ensure log directory exists
-  mkdir -p "$(dirname "$logfile")" || {
-    echo "Unable to create log directory for $logfile" >&2
+  mkdir -p "$log_dir" || {
+    echo "Unable to create log directory: $log_dir" >&2
     return 1
   }
+
+  # Normalise profile for filenames (safe chars only)
+  local profile_safe=""
+  if [[ -n "$profile" ]]; then
+    profile_safe="$(printf "%s" "$profile" \
+      | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g')"
+  fi
+
+  local ts filename logfile
+  ts="$(date '+%Y%m%d_%H%M%S')"
+
+  if [[ -n "$profile_safe" ]]; then
+    filename="homelab_${profile_safe}_${ts}.log"
+  else
+    filename="homelab_${ts}.log"
+  fi
+
+  logfile="${log_dir%/}/${filename}"
 
   # Set globals
   LOG_FILE="$logfile"
   log_set_level "$level"
 
-  # Session header (plain + visible)
+  # Rotate: keep latest N for this profile scope
+  # We only touch files matching our naming pattern to avoid deleting unrelated logs.
+  local pattern
+  if [[ -n "$profile_safe" ]]; then
+    pattern="homelab_${profile_safe}_"'*.log'
+  else
+    pattern="homelab_"'*.log'
+  fi
+
+  # shellcheck disable=SC2012
+  local old
+  old="$(ls -1t "${log_dir%/}"/$pattern 2>/dev/null | tail -n +"$((keep_max + 1))" || true)"
+  if [[ -n "$old" ]]; then
+    # Delete oldest beyond keep_max
+    # shellcheck disable=SC2086
+    rm -f $old 2>/dev/null || true
+  fi
+
+  # Session header (plain)
   {
     echo "================================================================"
     echo "Homelab session started"
     echo "Timestamp : $(date '+%Y-%m-%d %H:%M:%S')"
     echo "Host      : $(hostname)"
     echo "User      : $(whoami)"
+    echo "Profile   : ${profile_safe:-none}"
     echo "Log level : ${LOG_LEVEL}"
+    echo "Log file  : ${LOG_FILE}"
     echo "================================================================"
   } >>"$LOG_FILE"
 
   log_info "Logging initialised"
   log_debug "Log file: $LOG_FILE"
-  log_debug "Log level set to: $LOG_LEVEL"
+  log_debug "Rotation: keeping max ${keep_max} logs for ${profile_safe:-global}"
 
   return 0
 }
+
 
 # -----------------------------
 # Initial level normalisation
