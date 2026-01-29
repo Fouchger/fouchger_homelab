@@ -377,6 +377,57 @@ require_cmd() {
 }
 
 # -----------------------------
+# Logging initialisation
+# -----------------------------
+# Usage:
+#   init_logging "${ROOT_DIR}/state/logs/homelab.log" [LOG_LEVEL]
+#
+# Behaviour:
+#   - Creates log directory if missing
+#   - Sets LOG_FILE (plain text, no ANSI)
+#   - Optionally sets log level (defaults to existing or INFO)
+#   - Writes a clear session header to the log
+#
+init_logging() {
+  local logfile="$1"
+  local level="${2:-${LOG_LEVEL:-INFO}}"
+
+  if [[ -z "$logfile" ]]; then
+    echo "init_logging requires a log file path" >&2
+    return 1
+  fi
+
+  # Ensure log directory exists
+  mkdir -p "$(dirname "$logfile")" || {
+    echo "Unable to create log directory for $logfile" >&2
+    return 1
+  }
+
+  # Set globals
+  LOG_FILE="$logfile"
+  log_set_level "$level"
+
+  # Session header (plain + visible)
+  {
+    echo "================================================================"
+    echo "Homelab session started"
+    echo "Timestamp : $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Host      : $(hostname)"
+    echo "User      : $(whoami)"
+    echo "Log level : ${LOG_LEVEL}"
+    echo "================================================================"
+  } >>"$LOG_FILE"
+
+  log_info "Logging initialised"
+  log_debug "Log file: $LOG_FILE"
+  log_debug "Log level set to: $LOG_LEVEL"
+
+  return 0
+}
+
+# -----------------------------
 # Initial level normalisation
 # -----------------------------
 log_set_level "$LOG_LEVEL"
+
+
