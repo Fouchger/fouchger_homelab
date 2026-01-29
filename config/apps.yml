@@ -1,0 +1,20 @@
+apps:
+  docker:
+    label: "Docker Engine"
+    install: "modules/apps/install/docker.sh"
+    uninstall: "modules/apps/uninstall/docker.sh"
+
+  tailscale:
+    label: "Tailscale"
+    install: "modules/apps/install/tailscale.sh"
+    uninstall: "modules/apps/uninstall/tailscale.sh"
+
+  terraform:
+    label: "Terraform (IaC)"
+    install: "modules/apps/install/terraform.sh"
+    uninstall: "modules/apps/uninstall/terraform.sh"
+
+  ansible:
+    label: "Ansible (Configuration)"
+    install: "modules/apps/install/ansible.sh"
+    uninstall: "modules/apps/uninstall/ansible.sh"

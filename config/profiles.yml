@@ -1,0 +1,16 @@
+profiles:
+  basic:
+    description: "Core utilities and baseline hardening"
+    apps: ["updates", "ssh", "ufw", "fail2ban", "nfs_client"]
+
+  development:
+    description: "Developer workstation and CI helpers"
+    apps: ["docker", "git_tools", "vscode_server"]
+
+  network_admin:
+    description: "Network tooling and observability"
+    apps: ["tailscale", "dnsutils", "nmap", "prometheus_node_exporter"]
+
+  proxmox_admin:
+    description: "Proxmox API tooling and IaC stack"
+    apps: ["terraform", "ansible", "pve_tools"]
