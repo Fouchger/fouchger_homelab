@@ -36,3 +36,14 @@ This pack is documentation-only. It is written so implementation across `bootstr
 - [docs/ADRs/0003-validation-gates.md](/fouchger_homelab/docs/ADRs/0003-validation-gates.md)
 
 Last updated: 2026-01-29
+
+### Low-level specifications
+- docs/specs/20-low-level/README.md
+
+## Examples
+- docs/examples/
+
+## Quality and delivery
+- docs/specs/28-definition-of-done.md
+- docs/specs/29-version-pinning-policy.md
+- docs/specs/30-app-failure-policy.md

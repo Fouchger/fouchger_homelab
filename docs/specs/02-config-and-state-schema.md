@@ -1,31 +1,29 @@
 # Configuration and state schema
 
+This document defines the canonical schemas for configuration and state artefacts. Treat these as contracts. If implementation deviates, update the schema and documents first, then implement.
+
 ## config/apps.yml
-Defines apps with id, name, description, install/uninstall module paths, and optional requirements (packages, commands, secrets).
 
 ### Purpose
+`config/apps.yml` is the authoritative catalogue of applications that can be installed or uninstalled. It is metadata only. It must not contain logic or environment-specific values.
 
-Defines the authoritative list of applications that can be installed or uninstalled by the system.
-This file is pure metadata. It must not contain logic.
-
-Every app defined here must map to:
-- one install module
-- one uninstall module (optional but strongly recommended)
+Every app must map to module scripts under:
+- `modules/apps/install/<app_id>.sh`
+- `modules/apps/uninstall/<app_id>.sh` (strongly recommended, even if it becomes a no-op)
 
 ### Design principles
-
-- Stable app IDs (never rename casually)
-- Declarative dependencies and requirements
-- No environment-specific values
+- Stable app IDs (treat as API; avoid renames)
+- Declarative prerequisites (packages, commands, secrets)
 - Safe to read during dry run and diagnostics
+- No secrets or host-specific values stored in config
 
-### Schema (canonical)
-```yml
+### Canonical schema
+```yaml
 apps:
   <app_id>:
     name: "<Human readable name>"
     description: "<Short description shown in UI>"
-    category: "<optional grouping, e.g. container, monitoring, network>"
+    category: "<optional grouping, e.g. core, infra, container, network>"
     install:
       module: "modules/apps/install/<app_id>.sh"
     uninstall:
@@ -49,86 +47,71 @@ apps:
 ```
 
 ### Field definitions
-| Field               | Required | Description                                       |
-| ------------------- | -------- | ------------------------------------------------- |
-| `app_id`            | yes      | Stable, lowercase identifier. Used everywhere.    |
-| `name`              | yes      | Display name in dialog UI.                        |
-| `description`       | yes      | One-line description shown in selection lists.    |
-| `category`          | no       | Used for grouping or filtering in UI later.       |
-| `install.module`    | yes      | Relative path to install script.                  |
-| `uninstall.module`  | no       | Relative path to uninstall script.                |
-| `requires.packages` | no       | OS packages expected to exist or be installable.  |
-| `requires.commands` | no       | Commands expected post-install (validation only). |
-| `requires.secrets`  | no       | Keys that must exist in `state/secrets.env`.      |
-| `conflicts`         | no       | Apps that cannot be installed together.           |
-| `provides`          | no       | Capability tags (e.g. `container_runtime`).       |
-| `default_selected`  | no       | Pre-selected in manual install UI.                |
-| `version`           | optional | Version to install erse latest.                   |
-
+| Field | Required | Description |
+|---|---|---|
+| `app_id` | yes | Stable, lowercase identifier. Used in profiles, selections, and replay. |
+| `name` | yes | Display name in dialog UI. |
+| `description` | yes | One-line UI description. |
+| `category` | no | UI grouping. Future-friendly for filtering and navigation. |
+| `install.module` | yes | Relative path to install module script. |
+| `uninstall.module` | no | Relative path to uninstall module script. |
+| `requires.packages` | no | OS packages to ensure present (optional implementation choice). |
+| `requires.commands` | no | Commands expected post-install (validation and diagnostics). |
+| `requires.secrets` | no | Secret keys that must exist in `state/secrets.env`. |
+| `conflicts` | no | Apps that cannot be selected together; enforce at selection time. |
+| `provides` | no | Capability tags, e.g. `container_runtime`, `iac`, `cm`. |
+| `default_selected` | no | Pre-selected in manual app selection UI. |
 
 ### Behavioural rules
+- If `install.module` does not exist, the command must fail fast with a clear remediation message.
+- If required secrets are missing:
+  - dry run: warn and include in plan report
+  - live run: block execution before running the module
+- Conflicts must be enforced during selection, not during execution.
+- Execution ordering should be deterministic. Default is alphabetical by `app_id` unless explicit dependency ordering is introduced later.
 
-- If install.module does not exist → hard failure.
-- If a required secret is missing:
-    - dry run → warn + plan report
-    - live run → block execution
-- conflicts are enforced at selection time, not execution time.
-- Ordering is alphabetical by app_id unless dependency ordering is introduced later.
+### Minimal core baseline
+These are the apps you can rely on across all environments because they are small, widely available, and enable the automation plumbing:
 
-### Example
+Tier 0: runtime baseline installed by `bootstrap.sh` (not app-managed)
+- git
+- dialog
+- bash
 
-```yml
+Tier 1: core baseline profile (managed through apps and profiles)
+- curl
+- jq
+- yq
+- openssh_client
+
+Tier 2: infrastructure baseline (only for Proxmox + Terraform + Ansible workflows)
+- terraform
+- ansible
+
+### Example (as implemented in this repo)
+```yaml
 apps:
-  docker:
-    name: Docker Engine
-    description: Container runtime for local workloads
-    category: container
+  curl:
+    name: "Curl"
+    description: "HTTP client for downloads and API calls"
+    category: "core"
     install:
-      module: modules/apps/install/docker.sh
+      module: "modules/apps/install/curl.sh"
     uninstall:
-      module: modules/apps/uninstall/docker.sh
+      module: "modules/apps/uninstall/curl.sh"
     requires:
-      packages:
-        - ca-certificates
-        - curl
-      commands:
-        - docker
-    provides:
-      - container_runtime
+      commands: ["curl"]
+    provides: ["http_client"]
     default_selected: true
-
-  portainer:
-    name: Portainer
-    description: Web UI for Docker management
-    category: container
-    install:
-      module: modules/apps/install/portainer.sh
-    uninstall:
-      module: modules/apps/uninstall/portainer.sh
-    requires:
-      commands:
-        - docker
-    conflicts: []
 ```
 
 ## config/profiles.yml
-Defines profiles with id, name, description, and app lists. Supports Replace and Add semantics.
 
 ### Purpose
+`config/profiles.yml` defines curated bundles of apps. Profiles are composition only. They reference app IDs and do not override app behaviour.
 
-Defines curated bundles of apps that represent common use cases.
-Profiles are composition only. They do not override app behaviour.
-
-### Design principles
-
-- Profiles never define logic
-- Profiles reference apps by ID only
-- Profiles must be safe to replay
-- Profiles do not store environment-specific data
-
-### Schema (canonical)
-
-```yml
+### Canonical schema
+```yaml
 profiles:
   <profile_id>:
     name: "<Human readable name>"
@@ -140,74 +123,83 @@ profiles:
       - <optional_label>
 ```
 
-### Field definitions
-| Field         | Required | Description                                 |
-| ------------- | -------- | ------------------------------------------- |
-| `profile_id`  | yes      | Stable identifier used in state and replay. |
-| `name`        | yes      | Display name in UI.                         |
-| `description` | yes      | Shown in profile selection screen.          |
-| `apps`        | yes      | List of app IDs (must exist in apps.yml).   |
-| `tags`        | no       | Informational only (e.g. `infra`, `dev`).   |
-
 ### Behavioural rules
+- Every app referenced in a profile must exist in `config/apps.yml`.
+- Profile selection must prompt for merge semantics:
+  - Replace: overwrite existing selections
+  - Add: union with existing selections
+- Selected profile should be recorded in:
+  - `state/selections.env` (optional)
+  - `state/runs/latest.env` (recommended, for replay)
 
-- All apps must exist in config/apps.yml.
-- Profile selection triggers a merge or replace decision:
-    - Replace → overwrite state/selections.env
-    - Add → union with existing selections
-- Profiles do not bypass conflicts or validations.
-- Selected profile ID is recorded in state/runs/latest.env.
+### Minimal profiles to rely on
+- `core`: Tier 1 baseline
+- `infra_core`: Tier 1 baseline plus Terraform and Ansible
 
-### Example
-
-```yml
+### Example (as implemented in this repo)
+```yaml
 profiles:
-  basic:
-    name: Basic homelab
-    description: Minimal tools for a fresh homelab
-    apps:
-      - docker
-      - portainer
-    tags:
-      - baseline
-
-  development:
-    name: Development workstation
-    description: Tools for local development and testing
-    apps:
-      - docker
-      - portainer
-      - kind
-    tags:
-      - dev
-
-  proxmox_admin:
-    name: Proxmox administrator
-    description: Tooling for managing Proxmox and workloads
-    apps:
-      - docker
-      - terraform
-      - ansible
-    tags:
-      - infra
+  core:
+    name: "Core baseline"
+    description: "Minimum tooling relied on across all environments"
+    apps: ["curl", "jq", "yq", "openssh_client"]
 ```
 
-### Cross-file guarantees (important)
-
-These definitions are deliberately aligned with:
-- `commands/profiles.sh`
-Only merges and persists app IDs, never logic.
-- `commands/apps_install.sh` / `apps_uninstall.sh`
-Consume app IDs and resolve module paths via `apps.yml`.
-- `config/validations.yml`
-Enforces secrets and prerequisites declared in `apps.yml`.
-- `state/runs/latest.env`
-Records selected profile and resolved app lists for replay.
-
-No other file should need to “guess” behaviour.
-
 ## config/settings.env
-Defines dry_run and replay_enabled.
 
-## state/runs/latest.env
-Non-secret run contract used for replay and handoffs.
+### Purpose
+Feature toggles and defaults.
+
+Required keys:
+- `dry_run=true|false`
+- `replay_enabled=true|false`
+
+Recommended keys:
+- `ui_height`, `ui_width` (dialog sizing)
+- `log_level=INFO|WARN|ERROR`
+
+## config/validations.yml
+
+### Purpose
+Declarative validation gates. Commands must enforce relevant gates before performing mutating actions.
+
+Minimum gates:
+- proxmox_creds_present
+- templates_present
+- terraform_ready
+- ansible_ready
+- secrets_present (conditional)
+
+## config/ui.yml
+
+### Purpose
+Defines default UI behaviour and standardises look and feel. Kept declarative to prevent command-level UI drift.
+
+## State artefact contracts
+
+### state/selections.env
+- `SELECTED_APPS_INSTALL` (comma list)
+- `SELECTED_APPS_UNINSTALL` (comma list)
+- `SELECTED_PROFILE` (optional)
+
+### state/proxmox.env
+- `PROXMOX_API_URL`
+- `PROXMOX_NODE`
+- `PROXMOX_TOKEN_ID`
+- `PROXMOX_TOKEN_SECRET` (secret)
+- `PROXMOX_TLS_VERIFY` (optional)
+
+### state/secrets.env
+Key/value pairs. Must never be logged.
+
+### state/runs/latest.env
+Non-secret run contract used for replay and handoffs. Must not store token secrets.
+
+### state/cache
+- `cache/templates`: template artefacts and metadata
+- `cache/terraform`: terraform working directory and provider cache
+- `cache/repo`: optional clone cache
+
+### state/logs
+- One folder per RUN_ID.
+- Must contain both console logs and step summary reports.

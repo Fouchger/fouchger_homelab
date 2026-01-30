@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Install Docker Engine
+# Install Ansible
 #
 # Purpose:
-#   Install Docker Engine on the local host.
+#   Install Ansible on the local host.
 #
 # Contract:
 #   - Must be idempotent: if already installed, exit 0.
@@ -16,5 +16,5 @@
 #
 set -euo pipefail
 
-echo "[INFO] docker: install stub (no-op). Replace with real installer logic."
+echo "[INFO] ansible: install stub (no-op). Replace with real installer logic."
 exit 0

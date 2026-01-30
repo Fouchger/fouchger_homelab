@@ -1,20 +1,100 @@
 apps:
-  docker:
-    label: "Docker Engine"
-    install: "modules/apps/install/docker.sh"
-    uninstall: "modules/apps/uninstall/docker.sh"
+  curl:
+    name: "Curl"
+    description: "HTTP client for downloads and API calls"
+    category: "core"
+    install:
+      module: "modules/apps/install/curl.sh"
+    uninstall:
+      module: "modules/apps/uninstall/curl.sh"
+    requires:
+      commands: ["curl"]
+    provides: ["http_client"]
+    default_selected: true
 
-  tailscale:
-    label: "Tailscale"
-    install: "modules/apps/install/tailscale.sh"
-    uninstall: "modules/apps/uninstall/tailscale.sh"
+  jq:
+    name: "jq"
+    description: "JSON parser used for automation glue and Terraform outputs"
+    category: "core"
+    install:
+      module: "modules/apps/install/jq.sh"
+    uninstall:
+      module: "modules/apps/uninstall/jq.sh"
+    requires:
+      commands: ["jq"]
+    provides: ["json_tools"]
+    default_selected: true
+
+  yq:
+    name: "yq"
+    description: "YAML processor used for config and inventory manipulation"
+    category: "core"
+    install:
+      module: "modules/apps/install/yq.sh"
+    uninstall:
+      module: "modules/apps/uninstall/yq.sh"
+    requires:
+      commands: ["yq"]
+    provides: ["yaml_tools"]
+    default_selected: true
+
+  openssh_client:
+    name: "OpenSSH client"
+    description: "SSH client used for host access and Ansible connectivity"
+    category: "core"
+    install:
+      module: "modules/apps/install/openssh_client.sh"
+    uninstall:
+      module: "modules/apps/uninstall/openssh_client.sh"
+    requires:
+      commands: ["ssh"]
+    provides: ["ssh_client"]
+    default_selected: true
 
   terraform:
-    label: "Terraform (IaC)"
-    install: "modules/apps/install/terraform.sh"
-    uninstall: "modules/apps/uninstall/terraform.sh"
+    name: "Terraform"
+    description: "Infrastructure provisioning tool (IaC)"
+    category: "infra"
+    install:
+      module: "modules/apps/install/terraform.sh"
+    uninstall:
+      module: "modules/apps/uninstall/terraform.sh"
+    requires:
+      commands: ["terraform"]
+    provides: ["iac"]
 
   ansible:
-    label: "Ansible (Configuration)"
-    install: "modules/apps/install/ansible.sh"
-    uninstall: "modules/apps/uninstall/ansible.sh"
+    name: "Ansible"
+    description: "Configuration management tool"
+    category: "infra"
+    install:
+      module: "modules/apps/install/ansible.sh"
+    uninstall:
+      module: "modules/apps/uninstall/ansible.sh"
+    requires:
+      commands: ["ansible-playbook"]
+    provides: ["cm"]
+
+  docker:
+    name: "Docker Engine"
+    description: "Container runtime for local workloads"
+    category: "container"
+    install:
+      module: "modules/apps/install/docker.sh"
+    uninstall:
+      module: "modules/apps/uninstall/docker.sh"
+    requires:
+      commands: ["docker"]
+    provides: ["container_runtime"]
+
+  tailscale:
+    name: "Tailscale"
+    description: "Secure mesh VPN for remote access"
+    category: "network"
+    install:
+      module: "modules/apps/install/tailscale.sh"
+    uninstall:
+      module: "modules/apps/uninstall/tailscale.sh"
+    requires:
+      commands: ["tailscale"]
+    provides: ["vpn"]

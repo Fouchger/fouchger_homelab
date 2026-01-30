@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Uninstall Docker Engine
+# Uninstall Tailscale
 #
 # Purpose:
-#   Uninstall Docker Engine from the local host.
+#   Uninstall Tailscale from the local host.
 #
 # Contract:
 #   - Must be idempotent: if not installed, exit 0.
@@ -12,5 +12,5 @@
 #
 set -euo pipefail
 
-echo "[INFO] docker: uninstall stub (no-op). Replace with real uninstaller logic."
+echo "[INFO] tailscale: uninstall stub (no-op). Replace with real uninstaller logic."
 exit 0

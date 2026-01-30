@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Uninstall Docker Engine
+# Uninstall jq
 #
 # Purpose:
-#   Uninstall Docker Engine from the local host.
+#   Uninstall jq from the local host.
 #
 # Contract:
 #   - Must be idempotent: if not installed, exit 0.
@@ -12,5 +12,5 @@
 #
 set -euo pipefail
 
-echo "[INFO] docker: uninstall stub (no-op). Replace with real uninstaller logic."
+echo "[INFO] jq: uninstall stub (no-op). Replace with real uninstaller logic."
 exit 0

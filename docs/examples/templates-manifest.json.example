@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-01-30T22:00:00+13:00",
+  "ubuntu": {
+    "type": "lxc",
+    "source": "https://cloud-images.ubuntu.com/",
+    "filename": "ubuntu-22.04-lxc.img",
+    "path": "state/cache/templates/ubuntu-22.04-lxc.img",
+    "proxmox_template_id": "local:vztmpl/ubuntu-22.04-lxc.img"
+  },
+  "talos": {
+    "type": "iso",
+    "source": "https://github.com/siderolabs/talos/releases",
+    "filename": "talos-v1.6.0.iso",
+    "path": "state/cache/templates/talos-v1.6.0.iso",
+    "proxmox_template_id": "local:iso/talos-v1.6.0.iso"
+  }
+}

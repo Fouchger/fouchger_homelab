@@ -1,16 +1,30 @@
 profiles:
+  core:
+    name: "Core baseline"
+    description: "Minimum tooling relied on across all environments"
+    apps: ["curl", "jq", "yq", "openssh_client"]
+
+  infra_core:
+    name: "Infrastructure core"
+    description: "Core baseline plus Terraform and Ansible"
+    apps: ["curl", "jq", "yq", "openssh_client", "terraform", "ansible"]
+
   basic:
-    description: "Core utilities and baseline hardening"
-    apps: ["updates", "ssh", "ufw", "fail2ban", "nfs_client"]
+    name: "Basic homelab"
+    description: "Core baseline plus Docker for container workloads"
+    apps: ["curl", "jq", "yq", "openssh_client", "docker"]
 
   development:
-    description: "Developer workstation and CI helpers"
-    apps: ["docker", "git_tools", "vscode_server"]
+    name: "Development"
+    description: "Core baseline plus Docker and Terraform/Ansible for local dev and lab automation"
+    apps: ["curl", "jq", "yq", "openssh_client", "docker", "terraform", "ansible"]
 
   network_admin:
-    description: "Network tooling and observability"
-    apps: ["tailscale", "dnsutils", "nmap", "prometheus_node_exporter"]
+    name: "Network admin"
+    description: "Core baseline plus secure remote access tooling"
+    apps: ["curl", "jq", "yq", "openssh_client", "tailscale"]
 
   proxmox_admin:
-    description: "Proxmox API tooling and IaC stack"
-    apps: ["terraform", "ansible", "pve_tools"]
+    name: "Proxmox admin"
+    description: "Infra workflow tooling for Proxmox + Terraform + Ansible"
+    apps: ["curl", "jq", "yq", "openssh_client", "terraform", "ansible"]
