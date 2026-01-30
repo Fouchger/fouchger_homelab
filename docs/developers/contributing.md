@@ -8,6 +8,7 @@ Last updated: 2026-01-30
 
 ## Development rules
 - Docs first: update specs before behaviour
+- Every changed file follows the developer header standard (see `development-standards.md`)
 - One command or module per PR
 - Follow Definition of Done strictly
 

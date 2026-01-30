@@ -7,7 +7,6 @@ terraform/*.tfstate*
 
 # Homelab state (do not commit)
 **/state.env
-**/logs/
 
 # Secrets
 **/*.sops.*
@@ -28,3 +27,9 @@ terraform/*.tfstate*
 .local/.homelab_repo_root
 .homelab_repo_root
 t.sh
+# Keep the runs directory itself in the repo
+!state/runs/.gitkeep
+!state/logs/.gitkeep
+# Ignore everything inside it (all subfolders and files)
+state/runs/*
+state/logs/*
