@@ -27,7 +27,8 @@ source "$ROOT_DIR/lib/runtime.sh"
 source "$ROOT_DIR/lib/ui_dialog.sh"
 
 main() {
-  runtime_initui_info "Homelab runtime is initialised ✅"
+  runtime_init
+  ui_info "Homelab runtime is initialised ✅"
   ui_info "Menu is not yet implemented (Sprint 1). Run: ./bin/dev/test_runtime.sh"
 
   runtime_summary_line "homelab.sh exited before menu handoff (Sprint 1 placeholder)"

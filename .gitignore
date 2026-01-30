@@ -23,6 +23,14 @@ terraform/*.tfstate*
 *.sops.yaml.dec
 **/secrets.yaml
 **/secrets.yml
+
+# Local config overrides (not committed)
+config/local.env
+
+# Runtime state files (not committed)
+state/secrets.env
+state/proxmox.env
+state/selections.env
 # Local-only files
 .local/.homelab_repo_root
 .homelab_repo_root

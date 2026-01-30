@@ -32,6 +32,22 @@ Recommended contents (non-secret only):
 
 Security note: latest.env must not store token secrets. Secrets remain in state/proxmox.env and state/secrets.env with tight file permissions.
 
+## Command runner and consistent lifecycle
+Command scripts under `commands/` must use `lib/command_runner.sh` (`command_run`)
+so that every action:
+- initialises UI and runtime consistently
+- writes a per-run summary
+- triggers post-run validations (including secret leak scanning)
+
+Commands must not call `runtime_finish` directly. Exit handling is managed via
+the EXIT trap installed by `runtime_init`.
+
+## Secrets loading (explicit only)
+Runtime initialisation loads non-secret settings from `config/settings.env` (and
+optional `config/local.env`). Secrets are never auto-sourced. Commands that need
+secrets must call `secrets_load` from `lib/secrets.sh` and then validate the
+required variables via `secrets_require`.
+
 ## Dry run mode behavioural contract
 When DRY_RUN=true:
 - validations still run

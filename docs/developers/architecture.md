@@ -8,7 +8,7 @@ Design intent: predictable, replayable automation with a consistent UI and stron
 ## Expanded structure
 ```text
 fouchger_homelab
-├── 📁 archieve
+├── 📁 archieve  (legacy, non-executed)
 ├── 📁 commands
 │   ├── 📄 ansible_apply.sh
 │   ├── 📄 apps_install.sh
@@ -113,9 +113,21 @@ fouchger_homelab
 ├── 📄 LICENSE
 ├── 📝 README.md
 ├── 📄 VERSION
+├── 📄 install.sh
 ├── 📄 bootstrap.sh
 └── 📄 homelab.sh
 ```
+
+## Legacy archive directory
+`archieve/` is intentionally kept as legacy reference material only. It is not
+part of the live execution path and must not be sourced, executed, or referenced
+by new code.
+
+Guardrails:
+- `bootstrap.sh` intentionally skips `archieve/` when setting executable bits.
+- New features must land under `lib/`, `commands/`, `modules/`, or `proxmox/`.
+- If we later decide to remove the archive, we should do it as a dedicated
+  cleanup change with a release note.
 
 ## Notes on what’s new and why
 - **lib** is the shared plumbing (UI, logging, env handling, validation), so every command behaves consistently.

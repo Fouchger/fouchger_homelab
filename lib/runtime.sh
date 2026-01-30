@@ -29,6 +29,7 @@ RUN_ID=""
 RUN_DIR=""
 RUN_STARTED_AT=""
 RUN_EXIT_CODE=0
+RUN_FINISHED=0
 
 runtime__require_root_dir() {
   if [[ -z "${ROOT_DIR:-}" ]]; then
@@ -72,11 +73,16 @@ runtime_init() {
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/lib/env.sh"
   # shellcheck disable=SC1091
+  source "${ROOT_DIR}/lib/config.sh"
+  # shellcheck disable=SC1091
   source "${ROOT_DIR}/lib/logger.sh"
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/lib/validation.sh"
 
   env_init
+
+  # Load non-secret settings (single source of truth for config precedence).
+  config_load_all
 
   RUN_ID="$(runtime__make_run_id)"
   export RUN_ID
@@ -110,15 +116,25 @@ runtime_init() {
   trap 'runtime_finish $?' EXIT
 }
 
+runtime_summary_line() {
+  # Append a short, human-readable line to the run summary.
+  # This is safe to call before runtime_finish.
+  local msg
+  msg="$*"
+  [[ -n "${RUN_DIR:-}" ]] || return 0
+  printf '%s\n' "${msg}" >>"${RUN_DIR}/summary_lines.txt"
+}
+
 runtime_finish() {
   # Called via trap; safe to call multiple times.
   local code
   code="$1"
 
-  # Prevent re-entrancy.
-  if [[ "${RUN_EXIT_CODE}" -ne 0 ]]; then
+  # Prevent re-entrancy (explicit runtime_finish + EXIT trap, or nested exits).
+  if [[ "${RUN_FINISHED}" -eq 1 ]]; then
     return 0
   fi
+  RUN_FINISHED=1
   RUN_EXIT_CODE="${code}"
 
   local ended
@@ -134,6 +150,12 @@ runtime_finish() {
     echo "Ended: ${ended}"
     echo "Exit code: ${code}"
     echo "Log file: ${LOG_FILE}"
+
+    if [[ -f "${RUN_DIR}/summary_lines.txt" ]]; then
+      echo ""
+      echo "Notes:"
+      sed 's/^/ - /' "${RUN_DIR}/summary_lines.txt" || true
+    fi
   } >"${summary}"
 
   # Validate that we have not leaked secrets in the log.

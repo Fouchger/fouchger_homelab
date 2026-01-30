@@ -22,7 +22,7 @@ set -o pipefail
 
 validation__seed_secret_values() {
   # Collect potential secret values from environment to scan for in log files.
-  # We intentionally do not parse state/secrets.env in Sprint 1.
+  # Also scan state/secrets.env if present (without printing values).
   local vals=()
   local k
   for k in $(compgen -e); do
@@ -33,6 +33,21 @@ validation__seed_secret_values() {
     esac
   done
   printf '%s\n' "${vals[@]:-}"
+}
+
+validation__seed_secrets_from_file() {
+  local f
+  f="${STATE_DIR:-${ROOT_DIR:-}/state}/secrets.env"
+
+  [[ -f "${f}" ]] || return 0
+
+  # Parse KEY=VALUE lines, ignore comments and blanks. Do not emit keys.
+  # We only output values for internal scanning.
+  awk -F'=' '
+    /^[[:space:]]*#/ {next}
+    /^[[:space:]]*$/ {next}
+    NF>=2 {sub(/^[[:space:]]+/,"",$2); sub(/[[:space:]]+$/,"",$2); print $2}
+  ' "${f}" 2>/dev/null || true
 }
 
 validate_no_secrets_leaked() {
@@ -50,7 +65,7 @@ validate_no_secrets_leaked() {
     if grep -Fq -- "${secret}" "${log_file}"; then
       return 1
     fi
-  done < <(validation__seed_secret_values)
+  done < <( { validation__seed_secret_values; validation__seed_secrets_from_file; } )
 
   return 0
 }
