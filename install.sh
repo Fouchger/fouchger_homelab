@@ -40,7 +40,7 @@ set -Eeuo pipefail
 
 HOMELAB_GIT_URL="${HOMELAB_GIT_URL:-https://github.com/Fouchger/fouchger_homelab.git}"
 HOMELAB_DIR="${HOMELAB_DIR:-$HOME/fouchger_homelab}"
-HOMELAB_BRANCH="${HOMELAB_BRANCH:-main}"
+HOMELAB_BRANCH="${HOMELAB_BRANCH:-rewrite}"
 
 _die() { echo "🛑 $*" >&2; exit 1; }
 _have() { command -v "$1" >/dev/null 2>&1; }
