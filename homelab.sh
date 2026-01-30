@@ -17,7 +17,7 @@ source "${ROOT_DIR}/bin/lib/log.sh"
 # shellcheck source=/dev/null
 source "${ROOT_DIR}/bin/lib/perms.sh"
 
-init_logging "${ROOT_DIR}/state/logs/homelab.log"
+init_logging "${ROOT_DIR}/state/logs"
 
 ensure_executables "${ROOT_DIR}"
 
