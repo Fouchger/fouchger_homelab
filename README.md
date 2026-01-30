@@ -5,7 +5,7 @@
 Run the remote installer:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/rewrite/install.sh)"
 ```
 
 This will:
