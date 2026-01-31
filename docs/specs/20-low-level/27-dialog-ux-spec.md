@@ -7,6 +7,10 @@ Define predictable, consistent UI flows using `dialog`. This removes ambiguity a
 
 ## Global UX rules
 - All screens use wrappers from `lib/ui_dialog.sh`.
+- UI mode selection follows a deterministic decision tree:
+  1. Use `dialog` only when `/dev/tty` is available, `TERM` is usable, and `dialog` exists (bind dialog I/O to `/dev/tty`).
+  2. Otherwise, if stdin is interactive (`-t 0`), fall back to plain text prompts.
+  3. Otherwise, run headless with defaults and clear logging (no blocking reads).
 - Default buttons:
   - OK = proceed
   - Cancel = abort current action and return to menu
