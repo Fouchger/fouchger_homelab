@@ -10,7 +10,7 @@
 # Prerequisites:
 #   - Project bootstrapped (see bootstrap.sh)
 # Notes:
-#   - Placeholder: implementation lands in a future sprint.
+#   - Sprint 2 delivers menu routing and diagnostics navigation only (read-only).
 #   - This script follows the command runner contract in lib/command_runner.sh.
 # -----------------------------------------------------------------------------
 
@@ -23,7 +23,38 @@ export ROOT_DIR
 source "${ROOT_DIR}/lib/command_runner.sh"
 
 menu_impl() {
-  ui_info "Not implemented yet" "menu.sh is a placeholder. See docs/specs for the contract."
+  # Main menu loop (Sprint 2: routing + diagnostics only, read-only).
+  # This command owns the interactive experience for the current run.
+
+  # Source diagnostics implementation so we can call it within the same run.
+  # diagnostics.sh is guarded so it will not execute main when sourced.
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/commands/diagnostics.sh"
+
+  ui_info "fouchger_homelab" "Welcome. Sprint 2 provides read-only navigation and diagnostics."
+
+  local choice
+  while true; do
+    choice="$(ui_menu "Main menu" "Choose an option" \
+      "diagnostics" "Diagnostics (read-only)" \
+      "exit" "Exit")"
+
+    case "${choice}" in
+      diagnostics)
+        log_section "Menu: diagnostics" || true
+        diagnostics_impl || true
+        ;;
+      exit|"")
+        log_info "Menu exit selected" || true
+        break
+        ;;
+      *)
+        ui_warn "Unknown option" "Selection not recognised: ${choice}" || true
+        ;;
+    esac
+  done
+
+  runtime_summary_line "menu completed" || true
   return 0
 }
 

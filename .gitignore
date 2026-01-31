@@ -31,6 +31,7 @@ config/local.env
 state/secrets.env
 state/proxmox.env
 state/selections.env
+state/runs/latest.env
 # Local-only files
 .local/.homelab_repo_root
 .homelab_repo_root
@@ -41,3 +42,4 @@ t.sh
 # Ignore everything inside it (all subfolders and files)
 state/runs/*
 state/logs/*
+

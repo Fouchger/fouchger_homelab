@@ -6,33 +6,23 @@
 # Description:
 #   Primary entrypoint for the fouchger_homelab menu runtime.
 # Purpose:
-#   - Initialise environment, runtime lifecycle, logging, validation, and UI plumbing.
-#   - Hand off to menu flow (implemented in later sprints).
+#   - Hand off to the menu command (Sprint 2 onwards).
 # Usage:
 #   ./homelab.sh
 # Prerequisites:
 #   - Project bootstrapped (see bootstrap.sh)
 #   - bash, git (for some flows), dialog (recommended for UI)
 # Notes:
-#   - Sprint 1 provides runtime foundation only; menu flows arrive in later sprints.
+#   - homelab.sh is the human-friendly entrypoint.
+#   - The command runner owns runtime lifecycle; this wrapper simply routes to it.
 # ==========================================================
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Load runtime plumbing
-# shellcheck source=lib/runtime.sh
-source "$ROOT_DIR/lib/runtime.sh"
-# shellcheck source=lib/ui_dialog.sh
-source "$ROOT_DIR/lib/ui_dialog.sh"
+export ROOT_DIR
 
 main() {
-  runtime_init
-  ui_info "Homelab runtime is initialised ✅"
-  ui_info "Menu is not yet implemented (Sprint 1). Run: ./bin/dev/test_runtime.sh"
-
-  runtime_summary_line "homelab.sh exited before menu handoff (Sprint 1 placeholder)"
-  runtime_finish 0
+  exec "${ROOT_DIR}/commands/menu.sh" "$@"
 }
 
 main "$@"
