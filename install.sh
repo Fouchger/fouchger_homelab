@@ -80,6 +80,7 @@ _clone_or_update() {
 
 _handoff_to_bootstrap() {
   cd "$HOMELAB_DIR"
+  chmod +x *.sh
   [[ -x "./bootstrap.sh" ]] || _die "bootstrap.sh not found or not executable in ${HOMELAB_DIR}"
 
   echo "🚀 Delegating to bootstrap.sh"
