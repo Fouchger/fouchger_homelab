@@ -45,7 +45,7 @@ install_deps() {
   sudo_cmd="$(need_sudo || true)"
 
   # Sprint 3 uses python3 + python3-yaml for config parsing.
-  local pkgs=(git dialog curl ca-certificates python3 python3-yaml)
+  local pkgs=(git dialog curl ca-certificates nala python3 python3-yaml)
   echo "🧰 Installing dependencies: ${pkgs[*]}"
   $sudo_cmd apt-get update -y
   $sudo_cmd apt-get install -y "${pkgs[@]}"
