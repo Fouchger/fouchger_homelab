@@ -60,7 +60,7 @@ install_deps() {
 }
 
 clone_or_update() {
-  if [[ "${SKIP_CLONE:-0}" == "1" ]]; then
+  if [[ "${SKIP_CLONE:-1}" == "1" ]]; then
     echo "⏭️  SKIP_CLONE=1 set; using existing repo at: $HOMELAB_DIR"
     return 0
   fi
