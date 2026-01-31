@@ -1,78 +1,71 @@
 # Apps pipeline specification
 
-## Purpose
-Enable users to install or uninstall local applications either by selecting a profile or manually selecting apps.
+Last updated: 2026-01-31
 
-Apps are defined in `config/apps.yml` and must map to module scripts under `modules/apps/`. The apps pipeline is the same regardless of whether selections originated from a profile or manual selection.
+This specification describes how fouchger_homelab selects, installs, and uninstalls local applications.
 
-## Inputs
-- `config/apps.yml` (catalogue)
-- `config/profiles.yml` (if using profiles)
-- `state/selections.env` (existing selections)
-- `config/settings.env` (dry run toggle)
-- optional `state/secrets.env` (if an app declares required secrets)
+## Design principles
+- Catalogue-driven: apps are defined in config/apps.yml and profiles in config/profiles.yml.
+- Non-interactive installers: all modules under modules/apps must run without prompts.
+- Prefer nala, fallback to apt-get: packaging wrapper lives in lib/pkg.sh.
+- Observable by default: all module output is captured in the run log.
+- Non-secret handoff: selections are persisted to state/selections.env and mirrored into state/runs/latest.env.
 
-## Outputs
-- `state/selections.env` updated with selected app IDs
-- `state/runs/latest.env` updated for replay and run traceability
-- `state/logs/<RUN_ID>/` contains per-step and per-app logging
+## Key files
+- config/apps.yml: app catalogue (name, description, install/uninstall module paths)
+- config/profiles.yml: profiles -> list of app ids
+- commands/profiles.sh: pick a profile, update selections
+- commands/selections.sh: manually set install/uninstall lists
+- commands/apps_install.sh: install selected apps
+- commands/apps_uninstall.sh: uninstall selected apps
+- lib/pkg.sh: Debian/Ubuntu package wrapper (nala -> apt-get)
+- modules/apps/install/*.sh and modules/apps/uninstall/*.sh: app installers/removers
 
-## Selection and persistence
-1. Load apps catalogue.
-2. Render checklist (or profile selector).
-3. Validate selection integrity:
-   - all selected IDs exist in apps.yml
-   - conflicts are not violated (apps.yml `conflicts`)
-4. Persist selections to `state/selections.env`.
-5. Update `state/runs/latest.env` with:
-   - SELECTED_PROFILE (if applicable)
-   - SELECTED_APPS_INSTALL and/or SELECTED_APPS_UNINSTALL
-   - DRY_RUN
-   - LAST_STEP_COMPLETED=apps_selection
+## State contract
+state/selections.env (persisted across runs)
+- SELECTED_PROFILE
+- SELECTED_APPS_INSTALL (comma separated)
+- SELECTED_APPS_UNINSTALL (comma separated)
+
+state/runs/latest.env (handoff per run)
+- RUN_ID, RUN_DIR, LOG_FILE, RUN_STARTED_AT, RUN_TIMESTAMP, DRY_RUN
+- SELECTED_PROFILE
+- SELECTED_APPS_INSTALL
+- SELECTED_APPS_UNINSTALL
+- LAST_STEP_COMPLETED
 
 ## Execution model
-- Deterministic ordering: alphabetical by app ID unless dependency ordering is introduced later.
-- Before each module runs:
-  - confirm module file exists
-  - confirm required secrets exist (if declared)
-  - optionally confirm required commands are present (for uninstall) or absent (for install) if you implement that optimisation
+1) Profile selection (optional)
+- profiles.sh reads config/profiles.yml and writes the selected app ids into SELECTED_APPS_INSTALL.
+- Mode
+  - replace: overwrite install selections
+  - add: merge profile apps into existing install selections
 
-## Dry run behaviour
-- Do not execute module scripts.
-- Validate module existence and prerequisites.
-- Produce a plan report listing:
-  - selected apps
-  - modules that would run
-  - any missing prerequisites and remediation
+2) Manual selection (optional)
+- selections.sh updates both install and uninstall selections.
+- Dialog mode uses checklists.
+- Text mode falls back to comma-separated input boxes.
 
-## Module contract (modules/apps/*/<app>.sh)
-- Must be idempotent.
-- Must not prompt interactively (UI prompts happen via dialog).
-- Must log to stdout/stderr (captured to state/logs).
-- Must never print secrets.
-- Should return non-zero only for actionable failures.
+3) Install pipeline
+- apps_install.sh
+  - Selection precedence: --apps arg -> state/selections.env -> prompt (dialog only)
+  - DRY_RUN=true: validates module existence and displays the plan, without executing modules
+  - DRY_RUN=false: executes each install module in the order listed, and reports failures
 
-## Diagram: apps pipeline
-```mermaid
-flowchart TD
-  A[Menu: Apps] --> B{Install or Uninstall}
-  B -->|Install| C[Load app catalogue]
-  B -->|Uninstall| D[Load app catalogue]
-  C --> E[Dialog checklist: select apps]
-  D --> F[Dialog checklist: select apps]
-  E --> G[Validate selection + persist selections.env]
-  F --> G
-  G --> H[Write/Update latest.env]
-  H --> I{DRY_RUN?}
-  I -->|Yes| J[Preview actions + validate modules]
-  J --> K[Write plan report to logs]
-  K --> L[Return to menu]
-  I -->|No| M[Execute modules in order]
-  M --> N[Per-app preflight validation]
-  N --> O[Run module script]
-  O --> P[Capture exit codes + logs]
-  P --> Q{More apps?}
-  Q -->|Yes| N
-  Q -->|No| R[Update latest.env LAST_STEP_COMPLETED]
-  R --> L
-```
+4) Uninstall pipeline
+- apps_uninstall.sh mirrors install behaviour for uninstall modules.
+
+## Module contract
+Every module under modules/apps/install and modules/apps/uninstall must
+- Be idempotent
+- Be non-interactive
+- Exit 0 on success, non-zero on failure
+- Avoid printing secrets
+
+Baseline modules in this repo currently target Debian/Ubuntu packaging (nala or apt-get). Future sprints can introduce distro-specific strategies.
+
+## Known gaps and planned hardening
+Planned Sprint 4 improvements
+- Dependency ordering and conflict enforcement using apps.yml metadata
+- Vendor repository support for apps that are not available via default apt repositories (for example terraform, tailscale)
+- A consistent failure policy (stop-on-first-failure vs continue) with a config switch

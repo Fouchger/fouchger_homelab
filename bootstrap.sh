@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# File: bootstrap.sh
+# Created: 2026-01-31
+# Updated: 2026-01-31
+# Description: Bootstrapper for host prerequisites and repo setup.
+# Purpose: Ensures required baseline packages and permissions exist to run homelab.
+# Usage:
+#   ./bootstrap.sh
+# Prerequisites:
+#   - Bash
+#   - See docs/developers/development-standards.md
+# Notes:
+# - Follow repo command/UI contracts.
+# - Update 'Updated' when behaviour changes.
+# ==============================================================================
 # ==========================================================
 # Filename: bootstrap.sh
 # Created:  2026-01-31

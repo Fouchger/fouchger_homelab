@@ -21,10 +21,25 @@ From the repo root:
 ./homelab.sh
 ```
 
-## Sprint 1 demo
+## What works now
+- Menu-driven navigation (dialog with safe fallbacks)
+- Profiles and manual selections persisted to state/selections.env
+- Apps install/uninstall pipeline (Debian/Ubuntu), preferring nala with apt-get fallback
+- Diagnostics view (gates, environment, latest.env)
+
+## Demo scripts
+
+### Runtime demo (Sprint 1)
 
 ```bash
 ./bin/dev/test_runtime.sh
+```
+
+### Profiles + apps pipeline demo (Sprint 3)
+```bash
+./homelab.sh
+# Profiles -> development
+# Apps install (set DRY_RUN=true, then unset)
 ```
 
 See `docs/developers/sprint-plan.md` and `docs/developers/architecture.md` for the long-term design.

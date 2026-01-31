@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# File: install.sh
+# Created: 2026-01-31
+# Updated: 2026-01-31
+# Description: Installer wrapper for initial setup and execution.
+# Purpose: Provides a single callable install/run path for first-time users.
+# Usage:
+#   ./install.sh
+# Prerequisites:
+#   - Bash
+#   - See docs/developers/development-standards.md
+# Notes:
+# - Follow repo command/UI contracts.
+# - Update 'Updated' when behaviour changes.
+# ==============================================================================
 # -----------------------------------------------------------------------------
 # Filename: install.sh
 # Created:  2026-01-31

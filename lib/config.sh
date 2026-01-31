@@ -26,6 +26,7 @@ config_load_defaults() {
   : "${HOMELAB_LOG_LEVEL:=INFO}"
   : "${HOMELAB_UI:=dialog}"
   : "${DRY_RUN:=false}"
+  : "${HOMELAB_APPS_FAILURE_POLICY:=stop}" # stop|continue
 }
 
 config_load_env_file() {

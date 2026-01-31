@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# File: archieve/bin/menu.sh
+# Created: 2026-01-31
+# Updated: 2026-01-31
+# Description: Archived legacy script retained for reference.
+# Purpose: Retained for historical context; not part of current execution path.
+# Usage:
+#   ./archieve/bin/menu.sh
+# Prerequisites:
+#   - Bash
+#   - See docs/developers/development-standards.md
+# Notes:
+# - Follow repo command/UI contracts.
+# - Update 'Updated' when behaviour changes.
+# ==============================================================================
 # ==========================================================
 # bin/menu.sh
 # Purpose: Main dialog menu controller for homelab workflows.

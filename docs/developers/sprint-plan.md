@@ -1,260 +1,182 @@
-# Sprint plan (documentation-first delivery)
+# Sprint plan (demo-driven delivery)
 
-Last updated: 2026-01-30
+Last updated: 2026-01-31
 
-This sprint plan translates the development roadmap into **2-week, demo-driven sprints**.
-Each sprint must end with a runnable demo aligned to the Development Plan.
+This sprint plan translates the development roadmap into 2-week, demo-driven sprints. Each sprint ends with a runnable demo aligned to the Development Plan, and leaves the repo in a production-ready documentation state.
 
 ## Sprint 1: Runtime foundation
-**Goals**
+Goals
 - Establish run lifecycle, logging, validation, and UI plumbing.
 
-**Scope**
+Scope
 - lib/runtime.sh
 - lib/env.sh
 - lib/logger.sh
 - lib/validation.sh
 - lib/ui_dialog.sh
 
-**Demo**
+Demo
 ```bash
 ./bin/dev/test_runtime.sh
 ```
 
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
+Acceptance
 - RUN_ID created
-- logs + summary written
+- logs and summary written
 - no secrets leaked
-- controlled UI error permitted and expected (UI helper API is not yet standardised in Sprint 1)
-
----
 
 ## Sprint 2: Menu and diagnostics
-**Goals**
+Goals
 - Prove routing, visibility, and navigation without mutation.
-- Formalise the UI helper API and remove the known Sprint 1 UI error.
-- Demonstrate safe traversal between menu and diagnostics with full runtime observability.
+- Formalise the UI helper API and remove the Sprint 1 UI gaps.
 
-**Scope**
-UI layer (new, explicit)
-- lib/ui_dialog.sh
-    - Define and stabilise the public UI helper API:
-        - ui_init
-        - ui_info
-        - ui_warn
-        - ui_error
-        - ui_menu (or equivalent selector wrapper)
-    - Ensure graceful fallback between:
-        - dialog mode
-        - non-interactive / stdout mode
-    - Ensure all UI helpers:
-        - are safe to call multiple times
-        - do not terminate the runtime
-        - optionally log via logger if available
+Scope
+- commands/menu.sh (read-only navigation)
+- commands/diagnostics.sh (read-only visibility)
 
-This closes the Sprint 1 known limitation.
-
-**Menu and routing**
-- commands/menu.sh
-    - Main menu loop
-    - Routes to diagnostics
-    - Clean return paths
-    - No state mutation
-
-**Diagnostics**
-- commands/diagnostics.sh
-    - Read-only visibility into:
-        - runtime state
-        - state/runs/latest.env
-        - environment detection
-        - gate status
-    - No configuration changes
-    - No secrets required
-
-**Demo**
+Demo
 ```bash
 ./homelab.sh
 # Navigate menu
-# Enter diagnostics
+# Open diagnostics
 # Return to menu
 # Exit cleanly
 ```
 
+Acceptance
+- Menu renders using UI helper API (dialog or graceful fallback)
+- Diagnostics reads and displays state/runs/latest.env safely
+- Exiting menu completes runtime without errors
+- Logs and summary reflect navigation
 
+## Sprint 3: Profiles, selections, and apps pipeline baseline
+Goals
+- Config-driven selection via profiles.yml and apps.yml.
+- Persist selections safely for repeatable installs.
+- Deliver a baseline apps install/uninstall pipeline using a Debian/Ubuntu package manager wrapper that prefers nala and falls back to apt-get.
 
-**Known limitation**
-- No infrastructure changes (no installs, no Proxmox calls).
-- Menu and diagnostics are strictly read-only.
-- Secrets loading is not required or exercised in Sprint 2.
-
-The Sprint 1 UI helper missing-function error is resolved in Sprint 2 by formalising the UI API.
-
-**Acceptance**
-- Menu renders using UI helper API (dialog or fallback).
-- Gates are visible in diagnostics.
-- `state/runs/latest.env` is read and displayed safely.
-- Diagnostics returns cleanly to menu.
-- Exiting menu completes runtime without errors.
-- Logs and summary reflect menu navigation and diagnostics execution.
-
----
-
-## Sprint 3: Profiles and selections
-**Goals**
-- Deterministic config-driven selection.
-
-**Scope**
+Scope
 - commands/profiles.sh
 - commands/selections.sh
-
-**Demo**
-```bash
-./homelab.sh
-# Profiles → core
-```
-
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
-- selections.env updated
-- dry run safe
-- conflicts blocked
-
----
-
-## Sprint 4: Apps pipeline
-**Goals**
-- Local app install/uninstall pipeline.
-
-**Scope**
 - commands/apps_install.sh
 - commands/apps_uninstall.sh
-- core app modules
+- lib/state.sh
+- lib/yaml.sh
+- lib/pkg.sh
+- modules/apps/install/* (baseline Debian/Ubuntu installers)
+- modules/apps/uninstall/* (baseline Debian/Ubuntu removers)
 
-**Demo**
+Demo
 ```bash
 ./homelab.sh
-# Apps → Install (dry run then live)
+# Profiles -> development
+# Apps install (try DRY_RUN=true, then DRY_RUN=false)
+# Diagnostics (confirm latest.env keys)
 ```
 
+Known limitations
+- No dependency graph or conflict enforcement yet (planned Sprint 4).
+- Some apps may not be available via default apt repos (terraform, tailscale) unless vendor repos are added.
 
+Acceptance
+- state/selections.env updated
+- state/runs/latest.env updated with SELECTED_PROFILE, SELECTED_APPS_INSTALL, SELECTED_APPS_UNINSTALL, LAST_STEP_COMPLETED
+- DRY_RUN produces a plan and validates module presence
+- Live run executes modules in deterministic order and captures logs
 
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+## Sprint 4: Apps pipeline hardening
+Goals
+- Conflict detection, dependency ordering, and improved installer strategies.
 
-**Acceptance**
-- DRY_RUN produces plan
-- live run installs core apps
-- stop-on-first-failure enforced
+Scope
+- Conflict enforcement using apps.yml metadata
+- Optional vendor repo enablement for terraform, docker, tailscale
+- Stop-on-first-failure vs continue-on-failure policy (make configurable)
+- Better text-mode selection experience where dialog is unavailable
 
----
+Demo
+```bash
+DRY_RUN=true ./homelab.sh
+# Apps install -> plan output includes conflicts and remediation
+```
+
+Acceptance
+- Conflicts blocked with actionable messaging
+- Installer strategies documented and predictable
+- Failure policy documented and implemented
 
 ## Sprint 5: Proxmox access and templates
-**Goals**
-- External integration with safety.
+Goals
+- External integration with safety gates.
 
-**Scope**
+Scope
 - commands/proxmox_access.sh
 - commands/templates.sh
 
-**Demo**
+Demo
 ```bash
 ./homelab.sh
 # Proxmox access (dry run)
-# Templates
+# Templates (dry run)
 ```
 
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
-- proxmox.env written correctly
+Acceptance
+- proxmox.env written correctly (no secrets in latest.env)
 - template manifest valid
 
----
-
 ## Sprint 6: Terraform provisioning
-**Goals**
+Goals
 - IaC provisioning with replayable outputs.
 
-**Scope**
+Scope
 - commands/terraform_apply.sh
 - proxmox/terraform
 
-**Demo**
+Demo
 ```bash
 ./homelab.sh
-# Terraform → plan/apply
+# Terraform -> plan/apply
 ```
 
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
+Acceptance
 - outputs.json produced
-- latest.env updated
-
----
+- latest.env updated with output paths
 
 ## Sprint 7: Ansible configuration
-**Goals**
+Goals
 - Host configuration and convergence.
 
-**Scope**
+Scope
 - commands/ansible_apply.sh
 - dynamic inventory
 
-**Demo**
+Demo
 ```bash
 ./homelab.sh
-# Ansible → dry run/apply
+# Ansible -> dry run/apply
 ```
 
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
+Acceptance
 - inventory resolved
 - logs captured
 
----
-
 ## Sprint 8: Replay, cleanup, hardening
-**Goals**
+Goals
 - Operational resilience and contributor readiness.
 
-**Scope**
-- Replay
+Scope
+- Replay/resume
 - cleanup
 - linting
 - CI
 
-**Demo**
+Demo
 ```bash
 ./homelab.sh
 # Replay last run
 ```
 
-
-
-**Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
-
-**Acceptance**
+Acceptance
 - replay/resume works
 - cleanup safe
 - CI green

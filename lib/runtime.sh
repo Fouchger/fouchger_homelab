@@ -28,8 +28,35 @@ set -o pipefail
 RUN_ID=""
 RUN_DIR=""
 RUN_STARTED_AT=""
+RUN_TIMESTAMP=""
 RUN_EXIT_CODE=0
 RUN_FINISHED=0
+
+runtime_latest__file() {
+  echo "${STATE_RUNS_DIR}/latest.env"
+}
+
+runtime_latest_upsert() {
+  # Upsert a key=value into state/runs/latest.env.
+  # This file is the non-secret handoff contract between pipeline steps.
+  local key value file tmp
+  key="${1:-}"; value="${2:-}"
+  [[ -n "${key}" ]] || return 1
+  file="$(runtime_latest__file)"
+
+  mkdir -p "$(dirname "${file}")" || true
+  touch "${file}" || true
+
+  tmp="${file}.tmp"
+  if grep -qE "^${key}=" "${file}" 2>/dev/null; then
+    # Replace existing
+    sed -E "s|^${key}=.*|${key}=${value}|" "${file}" >"${tmp}"
+  else
+    cat "${file}" >"${tmp}"
+    printf '%s=%s\n' "${key}" "${value}" >>"${tmp}"
+  fi
+  mv "${tmp}" "${file}"
+}
 
 runtime__require_root_dir() {
   if [[ -z "${ROOT_DIR:-}" ]]; then
@@ -88,6 +115,8 @@ runtime_init() {
   export RUN_ID
   RUN_STARTED_AT="$(date -Iseconds)"
   export RUN_STARTED_AT
+  RUN_TIMESTAMP="${RUN_STARTED_AT}"
+  export RUN_TIMESTAMP
 
   RUN_DIR="${STATE_RUNS_DIR}/${RUN_ID}"
   export RUN_DIR
@@ -108,6 +137,8 @@ runtime_init() {
     echo "RUN_DIR=${RUN_DIR}"
     echo "LOG_FILE=${LOG_FILE}"
     echo "RUN_STARTED_AT=${RUN_STARTED_AT}"
+    echo "RUN_TIMESTAMP=${RUN_TIMESTAMP}"
+    echo "DRY_RUN=${DRY_RUN:-false}"
   } >"${STATE_RUNS_DIR}/latest.env"
 
   log_info "🚀 Run started" "run_id=${RUN_ID}" "log=${LOG_FILE}"

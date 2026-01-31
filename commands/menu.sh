@@ -29,10 +29,18 @@ menu_impl() {
   # Main menu loop (Sprint 2: routing + diagnostics only, read-only).
   # This command owns the interactive experience for the current run.
 
-  # Source diagnostics implementation so we can call it within the same run.
-  # diagnostics.sh is guarded so it will not execute main when sourced.
+  # Source command implementations so we can call them within the same run.
+  # Each command script is guarded (won't execute main when sourced).
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/commands/diagnostics.sh"
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/commands/profiles.sh"
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/commands/selections.sh"
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/commands/apps_install.sh"
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/commands/apps_uninstall.sh"
 
   # Optional single-action routing for automation/headless runs.
   # Supported tags: diagnostics, exit
@@ -81,17 +89,33 @@ menu_impl() {
     esac
   fi
 
-  ui_info "fouchger_homelab" "Welcome. Sprint 2 provides read-only navigation and diagnostics."
+  ui_info "fouchger_homelab" "Welcome. Sprint 3 provides profile selection and app install/uninstall, plus diagnostics."
 
   # If UI is fully headless, ui_menu will return HOMELAB_DEFAULT_CHOICE (or empty).
   local choice
   while true; do
-    choice="$(ui_menu "Main menu" "Choose an option"       "diagnostics" "Diagnostics (read-only)"       "exit" "Exit")"
+    choice="$(ui_menu "Main menu" "Choose an option"       "profiles" "Select profile"       "selections" "Manual app selection"       "apps_install" "Install selected apps"       "apps_uninstall" "Uninstall selected apps"       "diagnostics" "Diagnostics"       "exit" "Exit")"
 
     case "${choice}" in
       diagnostics)
         log_section "Menu: diagnostics" || true
         diagnostics_impl || true
+        ;;
+      profiles)
+        log_section "Menu: profiles" || true
+        profiles_impl || true
+        ;;
+      selections)
+        log_section "Menu: selections" || true
+        selections_impl || true
+        ;;
+      apps_install)
+        log_section "Menu: apps_install" || true
+        apps_install_impl || true
+        ;;
+      apps_uninstall)
+        log_section "Menu: apps_uninstall" || true
+        apps_uninstall_impl || true
         ;;
       exit|"")
         log_info "Menu exit selected" || true
@@ -111,4 +135,6 @@ main() {
   command_run "menu" menu_impl "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
