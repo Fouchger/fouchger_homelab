@@ -84,7 +84,7 @@ _handoff_to_bootstrap() {
 
   echo "🚀 Delegating to bootstrap.sh"
   # Single source of truth: bootstrap.sh handles deps, perms, and handoff.
-  REPO_URL="$HOMELAB_GIT_URL" REPO_REF="$HOMELAB_BRANCH" INSTALL_DIR="$HOMELAB_DIR" SKIP_CLONE=1 ./bootstrap.sh
+  REPO_URL="$HOMELAB_GIT_URL" REPO_REF="$HOMELAB_BRANCH" INSTALL_DIR="$HOMELAB_DIR" SKIP_CLONE=1 bash ./bootstrap.sh
 }
 
 main() {
