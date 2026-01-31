@@ -36,27 +36,71 @@ Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API i
 
 ## Sprint 2: Menu and diagnostics
 **Goals**
-- Prove routing and visibility without mutation.
+- Prove routing, visibility, and navigation without mutation.
+- Formalise the UI helper API and remove the known Sprint 1 UI error.
+- Demonstrate safe traversal between menu and diagnostics with full runtime observability.
 
 **Scope**
+UI layer (new, explicit)
+- lib/ui_dialog.sh
+    - Define and stabilise the public UI helper API:
+        - ui_init
+        - ui_info
+        - ui_warn
+        - ui_error
+        - ui_menu (or equivalent selector wrapper)
+    - Ensure graceful fallback between:
+        - dialog mode
+        - non-interactive / stdout mode
+    - Ensure all UI helpers:
+        - are safe to call multiple times
+        - do not terminate the runtime
+        - optionally log via logger if available
+
+This closes the Sprint 1 known limitation.
+
+**Menu and routing**
 - commands/menu.sh
+    - Main menu loop
+    - Routes to diagnostics
+    - Clean return paths
+    - No state mutation
+
+**Diagnostics**
 - commands/diagnostics.sh
+    - Read-only visibility into:
+        - runtime state
+        - state/runs/latest.env
+        - environment detection
+        - gate status
+    - No configuration changes
+    - No secrets required
 
 **Demo**
 ```bash
 ./homelab.sh
-# Diagnostics
+# Navigate menu
+# Enter diagnostics
+# Return to menu
+# Exit cleanly
 ```
 
 
 
 **Known limitation**
-Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+- No infrastructure changes (no installs, no Proxmox calls).
+- Menu and diagnostics are strictly read-only.
+- Secrets loading is not required or exercised in Sprint 2.
+
+The Sprint 1 UI helper missing-function error is resolved in Sprint 2 by formalising the UI API.
 
 **Acceptance**
-- Gates visible
-- latest.env read
-- clean return to menu
+- Menu renders using UI helper API (dialog or fallback).
+- Gates are visible in diagnostics.
+- `state/runs/latest.env` is read and displayed safely.
+- Diagnostics returns cleanly to menu.
+- Exiting menu completes runtime without errors.
+- Logs and summary reflect menu navigation and diagnostics execution.
 
 ---
 
