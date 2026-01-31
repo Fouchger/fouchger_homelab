@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # File: lib/pkg.sh
 # Created: 2026-01-31
-# Updated: 2026-01-31
+# Updated: 2026-02-01
 # Description: Package manager wrapper for Debian/Ubuntu.
 # Purpose: Prefer nala when available, fallback to apt-get.
 # Usage:
@@ -47,9 +47,11 @@ pkg_update() {
   backend="$(pkg__backend)"
 
   if [[ "${backend}" == "nala" ]]; then
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive nala update
+    # Note: sudo cannot run a command prefixed with VAR=value (it treats VAR=value
+    # as the command). Use env so this works both with and without sudo.
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive nala update
   else
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get update
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive apt-get update
   fi
 }
 
@@ -63,9 +65,9 @@ pkg_install() {
   fi
 
   if [[ "${backend}" == "nala" ]]; then
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive nala install -y "$@"
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive nala install -y "$@"
   else
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
   fi
 }
 
@@ -79,10 +81,10 @@ pkg_remove() {
   fi
 
   if [[ "${backend}" == "nala" ]]; then
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive nala remove -y "$@"
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive nala remove -y "$@"
   else
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get remove -y "$@"
+    ${sudo_cmd} env DEBIAN_FRONTEND=noninteractive apt-get remove -y "$@"
   fi
 }
 
-pkg_update
+# This library is intended to be sourced. Do not execute actions on load.
