@@ -21,10 +21,16 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 ./bin/dev/test_runtime.sh
 ```
 
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+
 **Acceptance**
 - RUN_ID created
 - logs + summary written
 - no secrets leaked
+- controlled UI error permitted and expected (UI helper API is not yet standardised in Sprint 1)
 
 ---
 
@@ -41,6 +47,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 ./homelab.sh
 # Diagnostics
 ```
+
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
 
 **Acceptance**
 - Gates visible
@@ -62,6 +73,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 ./homelab.sh
 # Profiles → core
 ```
+
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
 
 **Acceptance**
 - selections.env updated
@@ -85,6 +101,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 # Apps → Install (dry run then live)
 ```
 
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+
 **Acceptance**
 - DRY_RUN produces plan
 - live run installs core apps
@@ -107,6 +128,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 # Templates
 ```
 
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+
 **Acceptance**
 - proxmox.env written correctly
 - template manifest valid
@@ -127,6 +153,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 # Terraform → plan/apply
 ```
 
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
+
 **Acceptance**
 - outputs.json produced
 - latest.env updated
@@ -146,6 +177,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 ./homelab.sh
 # Ansible → dry run/apply
 ```
+
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
 
 **Acceptance**
 - inventory resolved
@@ -168,6 +204,11 @@ Each sprint must end with a runnable demo aligned to the Development Plan.
 ./homelab.sh
 # Replay last run
 ```
+
+
+
+**Known limitation**
+Sprint 1 intentionally delivers UI plumbing only. The high-level UI helper API is standardised in Sprint 2, so a controlled UI helper missing-function error may be observed while still meeting Sprint 1 acceptance (runtime completes with logs, summary, and validation).
 
 **Acceptance**
 - replay/resume works

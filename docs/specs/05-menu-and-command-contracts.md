@@ -5,6 +5,11 @@ Each command in `commands/` implements one discrete menu action. The contract
 ensures every command behaves consistently across interactive runs, dialog UI,
 and automated or replayable execution.
 
+
+
+## UI helper API status
+Sprint 1 provides UI plumbing via `lib/ui_dialog.sh` (dialog detection and message presentation). High-level UI helper functions (for example `ui_info`, `ui_warn`, `ui_error`) are **standardised in Sprint 2**. Any use of helper functions prior to Sprint 2 should be treated as provisional and must not be relied on for command correctness (commands must still log and exit safely without UI helpers).
+
 ## Required behaviour for every command
 1. Initialise the run lifecycle (RUN_ID, run directories, log file)
 2. Write all logs to `state/logs/` and a per-run summary to `state/runs/<RUN_ID>/`

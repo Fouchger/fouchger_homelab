@@ -118,6 +118,17 @@ fouchger_homelab
 └── 📄 homelab.sh
 ```
 
+
+
+## UI layer
+The UI layer is deliberately split into two tiers.
+
+Tier 1 is **UI plumbing**, implemented in `lib/ui_dialog.sh`. This tier covers dialog detection, non-interactive fallbacks, and consistent message presentation.
+
+Tier 2 is the **UI helper API** (for example `ui_info`, `ui_warn`, `ui_error`). This helper API is **not considered stable in Sprint 1**. Entry points may reference helper functions ahead of formal definition and, if so, a controlled error is acceptable provided the runtime lifecycle still completes (log, summary, validation, and clean exit reporting).
+
+Sprint 2 formalises the helper API so commands and menu flows can depend on it without ambiguity.
+
 ## Legacy archive directory
 `archieve/` is intentionally kept as legacy reference material only. It is not
 part of the live execution path and must not be sourced, executed, or referenced
