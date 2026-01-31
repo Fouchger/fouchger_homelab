@@ -89,12 +89,12 @@ menu_impl() {
     esac
   fi
 
-  ui_info "fouchger_homelab" "Welcome. Sprint 3 provides profile selection and app install/uninstall, plus diagnostics."
+  ui_info "@welcome" "fouchger_homelab" "Welcome. Sprint 3 provides profile selection and app install/uninstall, plus diagnostics."
 
   # If UI is fully headless, ui_menu will return HOMELAB_DEFAULT_CHOICE (or empty).
   local choice
   while true; do
-    choice="$(ui_menu "Main menu" "Choose an option"       "profiles" "Select profile"       "selections" "Manual app selection"       "apps_install" "Install selected apps"       "apps_uninstall" "Uninstall selected apps"       "diagnostics" "Diagnostics"       "exit" "Exit")"
+    choice="$(ui_menu "@main" "Main menu" "Choose an option"       "profiles" "Select profile"       "selections" "Manual app selection"       "apps_install" "Install selected apps"       "apps_uninstall" "Uninstall selected apps"       "diagnostics" "Diagnostics"       "exit" "Exit")"
 
     case "${choice}" in
       diagnostics)

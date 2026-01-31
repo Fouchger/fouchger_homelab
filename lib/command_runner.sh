@@ -54,8 +54,9 @@ command_run() {
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/lib/ui_dialog.sh"
 
-  ui_init
+  # Initialise runtime first so configuration and logging are available before UI.
   runtime_init
+  ui_init
 
   log_section "Command: ${command_name}"
 

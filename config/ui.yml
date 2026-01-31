@@ -1,0 +1,63 @@
+# -----------------------------------------------------------------------------
+# File: config/ui.yml
+# Created: 2026-02-01
+# Updated: 2026-02-01
+#
+# Description:
+#   UI defaults and per-object overrides for fouchger_homelab.
+#
+# Purpose:
+#   - Keep UI behaviour and sizing out of scripts.
+#   - Provide per-screen (object) customisation without forking UI code.
+#
+# Precedence model:
+#   1) Explicit environment variables (HOMELAB_UI_* or UI_*)
+#   2) config/ui.env (optional)
+#   3) This file (config/ui.yml)
+#   4) Built-in defaults inside lib/ui_dialog.sh
+#
+# Notes:
+#   - "mode" is the requested mode (auto|dialog|plain|console). The UI layer still
+#     applies the Sprint decision tree based on /dev/tty and TERM.
+#   - "console" is headless (no prompts). "plain" forces text prompts where possible.
+#   - Per-object overrides use the '@key' convention in UI calls.
+#     Example: ui_menu "@main" "Main menu" "Choose an option" ...
+# -----------------------------------------------------------------------------
+
+defaults:
+  mode: auto
+  width: 70
+  height: 20
+  menu_height: 10
+  backtitle: fouchger_homelab
+  title: fouchger_homelab
+
+objects:
+  # Main landing menu
+  main:
+    title: fouchger_homelab
+    widgets:
+      menu:
+        width: 80
+        height: 22
+        menu_height: 12
+
+  # Welcome/info splash shown before the main menu loop
+  welcome:
+    widgets:
+      msgbox:
+        width: 80
+        height: 10
+
+  # Diagnostics screens
+  diagnostics:
+    widgets:
+      msgbox:
+        width: 90
+        height: 18
+
+  profiles:
+    widgets:
+      menu:
+        width: 140
+        height: 20

@@ -67,6 +67,174 @@ UI_BACKTITLE="fouchger_homelab"
 UI_TITLE="fouchger_homelab"
 UI_INITIALISED=0
 
+# Internal override store (loaded from config/ui.yml or config/ui.env)
+declare -A UI_OVERRIDES=()
+UI_CONFIG_LOADED=0
+
+ui__config_file_env() {
+  echo "${ROOT_DIR:-.}/config/ui.env"
+}
+
+ui__config_file_yml() {
+  echo "${ROOT_DIR:-.}/config/ui.yml"
+}
+
+ui__config_load_env() {
+  # Load config/ui.env if present, without clobbering explicit environment overrides.
+  local file
+  file="$(ui__config_file_env)"
+  [[ -f "${file}" ]] || return 0
+
+  # shellcheck disable=SC1090
+  local before_mode before_w before_h before_mh before_bt before_t
+  before_mode="${HOMELAB_UI_MODE:-}"
+  before_w="${HOMELAB_UI_WIDTH:-}"
+  before_h="${HOMELAB_UI_HEIGHT:-}"
+  before_mh="${HOMELAB_UI_MENU_HEIGHT:-}"
+  before_bt="${HOMELAB_UI_BACKTITLE:-}"
+  before_t="${HOMELAB_UI_TITLE:-}"
+
+  set -a
+  source "${file}"
+  set +a
+
+  # Support either UI_* or HOMELAB_UI_* naming in ui.env.
+  # env_init sets HOMELAB_UI_MODE=auto by default; treat that as overridable by config.
+  if [[ -z "${before_mode}" || "${before_mode}" == "auto" ]]; then
+    HOMELAB_UI_MODE="${UI_MODE:-${before_mode:-auto}}"
+  fi
+  : "${HOMELAB_UI_WIDTH:=${UI_WIDTH:-${before_w:-70}}}"
+  : "${HOMELAB_UI_HEIGHT:=${UI_HEIGHT:-${before_h:-20}}}"
+  : "${HOMELAB_UI_MENU_HEIGHT:=${UI_MENU_HEIGHT:-${before_mh:-10}}}"
+  : "${HOMELAB_UI_BACKTITLE:=${UI_BACKTITLE:-${before_bt:-fouchger_homelab}}}"
+  : "${HOMELAB_UI_TITLE:=${UI_TITLE:-${before_t:-fouchger_homelab}}}"
+}
+
+ui__config_load_yml() {
+  # Load config/ui.yml into HOMELAB_UI_* defaults and UI_OVERRIDES (per object/widget).
+  local file
+  file="$(ui__config_file_yml)"
+  [[ -f "${file}" ]] || return 0
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # shellcheck disable=SC1091
+  if [[ -f "${ROOT_DIR:-.}/lib/yaml.sh" ]]; then
+    source "${ROOT_DIR}/lib/yaml.sh"
+  else
+    return 0
+  fi
+
+  # Defaults (do not override explicitly set environment values).
+  if [[ -z "${HOMELAB_UI_MODE:-}" || "${HOMELAB_UI_MODE}" == "auto" ]]; then
+    local _m
+    _m="$(yaml_get "${file}" "defaults.mode" 2>/dev/null || true)"
+    if [[ -n "${_m}" ]]; then HOMELAB_UI_MODE="${_m}"; fi
+  fi
+  if [[ -z "${HOMELAB_UI_WIDTH:-}" ]]; then
+    HOMELAB_UI_WIDTH="$(yaml_get "${file}" "defaults.width" 2>/dev/null || true)"
+  fi
+  if [[ -z "${HOMELAB_UI_HEIGHT:-}" ]]; then
+    HOMELAB_UI_HEIGHT="$(yaml_get "${file}" "defaults.height" 2>/dev/null || true)"
+  fi
+  if [[ -z "${HOMELAB_UI_MENU_HEIGHT:-}" ]]; then
+    HOMELAB_UI_MENU_HEIGHT="$(yaml_get "${file}" "defaults.menu_height" 2>/dev/null || true)"
+  fi
+  if [[ -z "${HOMELAB_UI_BACKTITLE:-}" ]]; then
+    HOMELAB_UI_BACKTITLE="$(yaml_get "${file}" "defaults.backtitle" 2>/dev/null || true)"
+  fi
+  if [[ -z "${HOMELAB_UI_TITLE:-}" ]]; then
+    HOMELAB_UI_TITLE="$(yaml_get "${file}" "defaults.title" 2>/dev/null || true)"
+  fi
+
+  # Per object/widget overrides.
+  local key widget prop val
+  while IFS= read -r key; do
+    [[ -n "${key}" ]] || continue
+    while IFS= read -r widget; do
+      [[ -n "${widget}" ]] || continue
+      for prop in width height menu_height backtitle title; do
+        val="$(yaml_get "${file}" "objects.${key}.widgets.${widget}.${prop}" 2>/dev/null || true)"
+        if [[ -n "${val}" ]]; then
+          UI_OVERRIDES["${key}.${widget}.${prop}"]="${val}"
+        fi
+      done
+    done < <(yaml_list "${file}" "objects.${key}.widgets" 2>/dev/null || true)
+
+    for prop in width height menu_height backtitle title; do
+      val="$(yaml_get "${file}" "objects.${key}.${prop}" 2>/dev/null || true)"
+      if [[ -n "${val}" ]]; then
+        UI_OVERRIDES["${key}._global.${prop}"]="${val}"
+      fi
+    done
+  done < <(yaml_list "${file}" "objects" 2>/dev/null || true)
+
+  return 0
+}
+
+ui__config_load_once() {
+  if [[ "${UI_CONFIG_LOADED}" -eq 1 ]]; then
+    return 0
+  fi
+  UI_CONFIG_LOADED=1
+
+  # Order: ui.env then ui.yml. Environment variables override both.
+  ui__config_load_env || true
+  ui__config_load_yml || true
+}
+
+ui__override_get() {
+  # Args: key, widget, prop
+  local k widget prop
+  k="${1:-}"; widget="${2:-}"; prop="${3:-}"
+
+  if [[ -n "${k}" ]]; then
+    if [[ -n "${UI_OVERRIDES["${k}.${widget}.${prop}"]+x}" ]]; then
+      echo "${UI_OVERRIDES["${k}.${widget}.${prop}"]}"
+      return 0
+    fi
+    if [[ -n "${UI_OVERRIDES["${k}._global.${prop}"]+x}" ]]; then
+      echo "${UI_OVERRIDES["${k}._global.${prop}"]}"
+      return 0
+    fi
+  fi
+
+  echo ""
+  return 0
+}
+
+ui__extract_key() {
+  # If the first argument is like "@main", treat it as a UI object key.
+  # Prints key (empty if none).
+  local arg
+  arg="${1:-}"
+  if [[ "${arg}" == @* ]]; then
+    echo "${arg#@}"
+  else
+    echo ""
+  fi
+}
+
+ui__dims_for() {
+  # Args: widget, key, default_h, default_w, default_menu_h
+  # Prints: "height width menu_height backtitle title"
+  local widget key dh dw dmh h w mh bt t v
+  widget="${1:-}"; key="${2:-}"
+  dh="${3:-${UI_HEIGHT}}"; dw="${4:-${UI_WIDTH}}"; dmh="${5:-${UI_MENU_HEIGHT}}"
+
+  h="${dh}"; w="${dw}"; mh="${dmh}"; bt="${UI_BACKTITLE}"; t="${UI_TITLE}"
+
+  v="$(ui__override_get "${key}" "${widget}" "height")"; [[ -n "${v}" ]] && h="${v}"
+  v="$(ui__override_get "${key}" "${widget}" "width")"; [[ -n "${v}" ]] && w="${v}"
+  v="$(ui__override_get "${key}" "${widget}" "menu_height")"; [[ -n "${v}" ]] && mh="${v}"
+  v="$(ui__override_get "${key}" "${widget}" "backtitle")"; [[ -n "${v}" ]] && bt="${v}"
+  v="$(ui__override_get "${key}" "${widget}" "title")"; [[ -n "${v}" ]] && t="${v}"
+
+  echo "${h} ${w} ${mh} ${bt} ${t}"
+}
+
 ui__has_dialog() {
   command -v dialog >/dev/null 2>&1
 }
@@ -144,6 +312,10 @@ ui_init() {
   fi
   UI_INITIALISED=1
 
+  # Pull UI defaults and per-object overrides from config/ui.env and config/ui.yml.
+  # Environment variables still win over config.
+  ui__config_load_once || true
+
   UI_MODE="$(ui__mode_detect)"
 
   UI_HEIGHT="${HOMELAB_UI_HEIGHT:-20}"
@@ -184,16 +356,28 @@ ui__text_pause() {
 }
 
 ui_msgbox() {
-  local title text height width
-  title="${1:-${UI_TITLE}}"; shift || true
+  local key title text height width dims
+  key="$(ui__extract_key "${1:-}")"
+  if [[ -n "${key}" ]]; then shift; fi
+
+  dims="$(ui__dims_for "msgbox" "${key}" "${UI_HEIGHT}" "${UI_WIDTH}" "${UI_MENU_HEIGHT}")"
+  local dh dw _dmh bt dt
+  read -r dh dw _dmh bt dt <<<"${dims}"
+
+  title="${1:-${dt}}"; shift || true
   text="${1:-}"; shift || true
-  height="${1:-${UI_HEIGHT}}"; shift || true
-  width="${1:-${UI_WIDTH}}"; shift || true
+  height="${1:-${dh}}"; shift || true
+  width="${1:-${dw}}"; shift || true
+
+  # Apply per-object backtitle/title for the duration of this call.
+  local prev_bt prev_t
+  prev_bt="${UI_BACKTITLE}"; prev_t="${UI_TITLE}"
+  UI_BACKTITLE="${bt}"
+  UI_TITLE="${title}"
 
   set +o errexit
   case "${UI_MODE}" in
     dialog)
-      UI_TITLE="${title}"
       ui__dialog_run --msgbox "${text}" "${height}" "${width}" >/dev/null || true
       ;;
     text)
@@ -208,6 +392,8 @@ ui_msgbox() {
       ;;
   esac
   set -o errexit
+  UI_BACKTITLE="${prev_bt}"
+  UI_TITLE="${prev_t}"
   return 0
 }
 
@@ -402,8 +588,15 @@ ui_menu() {
   # Backwards compatible:
   # - Echo selected tag to stdout.
   # - Returns 0 even when cancelled; caller should treat empty output as cancel.
-  local title prompt
-  title="${1:-Menu}"; shift || true
+  local key dims title prompt
+  key="$(ui__extract_key "${1:-}")"
+  if [[ -n "${key}" ]]; then shift; fi
+
+  dims="$(ui__dims_for "menu" "${key}" "${UI_HEIGHT}" "${UI_WIDTH}" "${UI_MENU_HEIGHT}")"
+  local dh dw dmh bt dt
+  read -r dh dw dmh bt dt <<<"${dims}"
+
+  title="${1:-${dt:-Menu}}"; shift || true
   prompt="${1:-Select an option}"; shift || true
 
   local -a items
@@ -413,8 +606,11 @@ ui_menu() {
   set +o errexit
   case "${UI_MODE}" in
     dialog)
-      UI_TITLE="${title}"
-      choice="$(dialog --backtitle "${UI_BACKTITLE}" --title "${UI_TITLE}"         --menu "${prompt}" "${UI_HEIGHT}" "${UI_WIDTH}" "${UI_MENU_HEIGHT}"         "${items[@]}"         3>&1 1>&2 2>&3 </dev/tty)"
+      local prev_bt prev_t
+      prev_bt="${UI_BACKTITLE}"; prev_t="${UI_TITLE}"
+      UI_BACKTITLE="${bt}"; UI_TITLE="${title}"
+      choice="$(dialog --backtitle "${UI_BACKTITLE}" --title "${UI_TITLE}"         --menu "${prompt}" "${dh}" "${dw}" "${dmh}"         "${items[@]}"         3>&1 1>&2 2>&3 </dev/tty)"
+      UI_BACKTITLE="${prev_bt}"; UI_TITLE="${prev_t}"
       ;;
     text)
       printf '%s\n%s\n' "${title}" "${prompt}" >&2
@@ -668,7 +864,9 @@ ui_and_widget() {
 ui__msgbox() { ui_msgbox "$@"; }
 
 ui_info() {
-  local title text
+  local key title text
+  key="$(ui__extract_key "${1:-}")"
+  if [[ -n "${key}" ]]; then shift; fi
   if [[ $# -ge 2 ]]; then
     title="$1"; shift || true
     text="$1"; shift || true
@@ -678,11 +876,17 @@ ui_info() {
     text="$*"
   fi
   ui__log_if_available info "UI info: ${title}"
-  ui_msgbox "${title}" "${text}"
+  if [[ -n "${key}" ]]; then
+    ui_msgbox "@${key}" "${title}" "${text}"
+  else
+    ui_msgbox "${title}" "${text}"
+  fi
 }
 
 ui_warn() {
-  local title text
+  local key title text
+  key="$(ui__extract_key "${1:-}")"
+  if [[ -n "${key}" ]]; then shift; fi
   if [[ $# -ge 2 ]]; then
     title="$1"; shift || true
     text="$1"; shift || true
@@ -692,11 +896,17 @@ ui_warn() {
     text="$*"
   fi
   ui__log_if_available warn "UI warn: ${title}"
-  ui_msgbox "${title}" "${text}"
+  if [[ -n "${key}" ]]; then
+    ui_msgbox "@${key}" "${title}" "${text}"
+  else
+    ui_msgbox "${title}" "${text}"
+  fi
 }
 
 ui_error() {
-  local title text
+  local key title text
+  key="$(ui__extract_key "${1:-}")"
+  if [[ -n "${key}" ]]; then shift; fi
   if [[ $# -ge 2 ]]; then
     title="$1"; shift || true
     text="$1"; shift || true
@@ -706,5 +916,9 @@ ui_error() {
     text="$*"
   fi
   ui__log_if_available error "UI error: ${title}"
-  ui_msgbox "${title}" "${text}"
+  if [[ -n "${key}" ]]; then
+    ui_msgbox "@${key}" "${title}" "${text}"
+  else
+    ui_msgbox "${title}" "${text}"
+  fi
 }
