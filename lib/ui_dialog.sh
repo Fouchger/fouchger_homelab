@@ -60,8 +60,8 @@ set -o pipefail
 # shellcheck shell=bash
 
 UI_MODE="console"            # dialog|text|console (console=text in practice)
-UI_WIDTH=70
-UI_HEIGHT=20
+UI_WIDTH=200
+UI_HEIGHT=50
 UI_MENU_HEIGHT=10
 UI_BACKTITLE="fouchger_homelab"
 UI_TITLE="fouchger_homelab"

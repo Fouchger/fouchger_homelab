@@ -47,9 +47,9 @@ pkg_update() {
   backend="$(pkg__backend)"
 
   if [[ "${backend}" == "nala" ]]; then
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive nala update -y
+    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive nala update
   else
-    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get update -y
+    ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get update
   fi
 }
 
@@ -84,3 +84,5 @@ pkg_remove() {
     ${sudo_cmd} DEBIAN_FRONTEND=noninteractive apt-get remove -y "$@"
   fi
 }
+
+pkg_update
