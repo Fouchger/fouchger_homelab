@@ -31,4 +31,6 @@ main() {
   command_run "terraform_apply" terraform_apply_impl "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

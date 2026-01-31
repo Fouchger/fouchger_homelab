@@ -31,4 +31,6 @@ main() {
   command_run "proxmox_access" proxmox_access_impl "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

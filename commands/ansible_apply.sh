@@ -31,4 +31,6 @@ main() {
   command_run "ansible_apply" ansible_apply_impl "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
