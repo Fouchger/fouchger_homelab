@@ -103,7 +103,7 @@ menu_impl() {
         ;;
       profiles)
         log_section "Menu: profiles" || true
-        profiles_impl || true
+        profiles_impl --tier admin || true
         ;;
       selections)
         log_section "Menu: selections" || true

@@ -1,30 +1,109 @@
 profiles:
+  # ---------------------------------------------------------------------------
+  # Admin node profiles (control plane only)
+  # ---------------------------------------------------------------------------
+
+  admin_control_plane:
+    tier: "admin"
+    name: "Admin Control Plane (Baseline)"
+    description: "Secure, repeatable orchestration node: SSH, git, Github, IaC/CM, automation tooling"
+    apps:
+      - openssh_server
+      - git
+      - gh
+      - curl
+      - wget
+      - ca_certificates
+      - gnupg
+      - lsb_release
+      - jq
+      - yq
+      - python3
+      - python3_venv
+      - pipx
+      - terraform
+      - ansible
+      - ansible_lint
+      - sops
+      - age
+
+  admin_security_baseline:
+    tier: "admin"
+    name: "Admin Security Baseline"
+    description: "Hardening for the most privileged node"
+    apps:
+      - ufw
+      - fail2ban
+      - unattended_upgrades
+      - chrony
+      - apparmor_utils
+
+  admin_operational_toolkit:
+    tier: "admin"
+    name: "Admin Operational Toolkit"
+    description: "Lightweight troubleshooting and operational utilities"
+    apps:
+      - htop
+      - iotop
+      - sysstat
+      - dnsutils
+      - iproute2
+      - logrotate
+      - tmux
+
+  infrastructure_management_layer:
+    tier: "admin"
+    name: "Infrastructure Management Layer"
+    description: "Optional admin capabilities for template and VM lifecycle management"
+    apps:
+      - cloud_init
+      - qemu_guest_agent
+
+  kubernetes_talos_admin_tooling:
+    tier: "admin"
+    name: "Kubernetes (Talos) Admin Tooling"
+    description: "Client-side tools for Talos Kubernetes administration (Talosctl, kubectl, helm)"
+    apps:
+      - talosctl
+      - kubectl
+      - helm
+
+  # ---------------------------------------------------------------------------
+  # Legacy / convenience profiles (kept for backwards compatibility)
+  # ---------------------------------------------------------------------------
+
   core:
+    tier: "admin"
     name: "Core baseline"
     description: "Minimum tooling relied on across all environments"
     apps: ["curl", "jq", "yq", "openssh_client"]
 
   infra_core:
+    tier: "admin"
     name: "Infrastructure core"
     description: "Core baseline plus Terraform and Ansible"
     apps: ["curl", "jq", "yq", "openssh_client", "terraform", "ansible"]
 
   basic:
+    tier: "admin"
     name: "Basic homelab"
     description: "Core baseline plus Docker for container workloads"
     apps: ["curl", "jq", "yq", "openssh_client", "docker"]
 
   development:
+    tier: "admin"
     name: "Development"
     description: "Core baseline plus Docker and Terraform/Ansible for local dev and lab automation"
     apps: ["curl", "jq", "yq", "openssh_client", "docker", "terraform", "ansible"]
 
   network_admin:
+    tier: "admin"
     name: "Network admin"
     description: "Core baseline plus secure remote access tooling"
     apps: ["curl", "jq", "yq", "openssh_client", "tailscale"]
 
   proxmox_admin:
+    tier: "admin"
     name: "Proxmox admin"
     description: "Infra workflow tooling for Proxmox + Terraform + Ansible"
     apps: ["curl", "jq", "yq", "openssh_client", "terraform", "ansible"]

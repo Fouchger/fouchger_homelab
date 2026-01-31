@@ -1,36 +1,17 @@
 #!/usr/bin/env bash
-# ==============================================================================
+# -----------------------------------------------------------------------------
 # File: homelab.sh
 # Created: 2026-01-31
-# Updated: 2026-01-31
+# Updated: 2026-02-01
 # Description: Primary entrypoint for the homelab menu and commands.
-# Purpose: Initialises environment, logging, and routes to the selected command/menu.
+# Purpose: Routes into the menu command, which owns the runtime lifecycle.
 # Usage:
 #   ./homelab.sh
-# Prerequisites:
-#   - Bash
-#   - See docs/developers/development-standards.md
 # Notes:
-# - Follow repo command/UI contracts.
-# - Update 'Updated' when behaviour changes.
-# ==============================================================================
-# ==========================================================
-# Filename: homelab.sh
-# Created:  2026-01-31
-# Updated:  2026-01-31
-# Description:
-#   Primary entrypoint for the fouchger_homelab menu runtime.
-# Purpose:
-#   - Hand off to the menu command (Sprint 2 onwards).
-# Usage:
-#   ./homelab.sh
-# Prerequisites:
-#   - Project bootstrapped (see bootstrap.sh)
-#   - bash, git (for some flows), dialog (recommended for UI)
-# Notes:
-#   - homelab.sh is the human-friendly entrypoint.
-#   - The command runner owns runtime lifecycle; this wrapper simply routes to it.
-# ==========================================================
+#   - The command runner in lib/command_runner.sh initialises env, logging, and
+#     summary artefacts. This wrapper simply hands off to the menu.
+# -----------------------------------------------------------------------------
+
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

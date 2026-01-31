@@ -73,7 +73,7 @@ Checks:
 5. If `config/settings.env` sets a required version policy later, validate it here.
 
 Remediation text:
-- “Install terraform (Apps → infra_core) and ensure state/cache/terraform is writable.”
+- “Install terraform (Apps → admin_control_plane (or install terraform directly)) and ensure state/cache/terraform is writable.”
 
 Failure class: Recoverable
 
@@ -88,7 +88,7 @@ Checks:
 5. command_exists(`ansible-playbook`)
 
 Remediation text:
-- “Install ansible (Apps → infra_core) and ensure proxmox/ansible is present.”
+- “Install ansible (Apps → admin_control_plane) and ensure proxmox/ansible is present.”
 
 Failure class: Recoverable
 

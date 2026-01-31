@@ -83,7 +83,7 @@ fouchger_homelab
 │   │   │   └── ⚙️ proxmox_dynamic.yml
 │   │   ├── 📁 playbooks
 │   │   │   ├── ⚙️ base.yml
-│   │   │   ├── ⚙️ k8s_talos.yml
+│   │   │   ├── ⚙️ k8s_talos.yml (Talos Kubernetes, includes MetalLB + Ingress)
 │   │   │   └── ⚙️ site.yml
 │   │   ├── 📁 roles
 │   │   │   ├── 📁 common

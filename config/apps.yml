@@ -1,4 +1,8 @@
 apps:
+  # ---------------------------------------------------------------------------
+  # Core utilities
+  # ---------------------------------------------------------------------------
+
   curl:
     name: "Curl"
     description: "HTTP client for downloads and API calls"
@@ -10,6 +14,52 @@ apps:
     requires:
       commands: ["curl"]
     provides: ["http_client"]
+    default_selected: true
+
+  wget:
+    name: "Wget"
+    description: "Download utility for automation and bootstrapping"
+    category: "core"
+    install:
+      module: "modules/apps/install/wget.sh"
+    uninstall:
+      module: "modules/apps/uninstall/wget.sh"
+    requires:
+      commands: ["wget"]
+    provides: ["http_client"]
+    default_selected: true
+
+  ca_certificates:
+    name: "CA certificates"
+    description: "System CA trust store for TLS"
+    category: "core"
+    install:
+      module: "modules/apps/install/ca_certificates.sh"
+    uninstall:
+      module: "modules/apps/uninstall/ca_certificates.sh"
+    provides: ["tls_trust"]
+    default_selected: true
+
+  gnupg:
+    name: "GnuPG"
+    description: "GPG tooling used for repository keys and verification"
+    category: "core"
+    install:
+      module: "modules/apps/install/gnupg.sh"
+    uninstall:
+      module: "modules/apps/uninstall/gnupg.sh"
+    provides: ["crypto_tools"]
+    default_selected: true
+
+  lsb_release:
+    name: "LSB release"
+    description: "OS release helpers used by installers"
+    category: "core"
+    install:
+      module: "modules/apps/install/lsb_release.sh"
+    uninstall:
+      module: "modules/apps/uninstall/lsb_release.sh"
+    provides: ["os_detection"]
     default_selected: true
 
   jq:
@@ -38,6 +88,32 @@ apps:
     provides: ["yaml_tools"]
     default_selected: true
 
+  gh:
+    name: "Github"
+    description: "GitHub CLI for managing repos, issues, PRs and auth from the terminal"
+    category: "core"
+    install:
+      module: "modules/apps/install/gh.sh"
+    uninstall:
+      module: "modules/apps/uninstall/gh.sh"
+    requires:
+      commands: ["gh"]
+    provides: ["scm"]
+    default_selected: true
+
+  git:
+    name: "Git"
+    description: "Source control for infrastructure and configuration"
+    category: "core"
+    install:
+      module: "modules/apps/install/git.sh"
+    uninstall:
+      module: "modules/apps/uninstall/git.sh"
+    requires:
+      commands: ["git"]
+    provides: ["scm"]
+    default_selected: true
+
   openssh_client:
     name: "OpenSSH client"
     description: "SSH client used for host access and Ansible connectivity"
@@ -50,6 +126,54 @@ apps:
       commands: ["ssh"]
     provides: ["ssh_client"]
     default_selected: true
+
+  openssh_server:
+    name: "OpenSSH server"
+    description: "SSH server for remote management of the admin node"
+    category: "core"
+    install:
+      module: "modules/apps/install/openssh_server.sh"
+    uninstall:
+      module: "modules/apps/uninstall/openssh_server.sh"
+    provides: ["ssh_server"]
+    default_selected: false
+
+  python3:
+    name: "Python 3"
+    description: "Runtime for automation tooling"
+    category: "core"
+    install:
+      module: "modules/apps/install/python3.sh"
+    uninstall:
+      module: "modules/apps/uninstall/python3.sh"
+    provides: ["python_runtime"]
+    default_selected: true
+
+  python3_venv:
+    name: "Python venv"
+    description: "Isolated virtual environments for automation"
+    category: "core"
+    install:
+      module: "modules/apps/install/python3_venv.sh"
+    uninstall:
+      module: "modules/apps/uninstall/python3_venv.sh"
+    provides: ["python_venv"]
+    default_selected: true
+
+  pipx:
+    name: "pipx"
+    description: "Install and run Python applications in isolated environments"
+    category: "core"
+    install:
+      module: "modules/apps/install/pipx.sh"
+    uninstall:
+      module: "modules/apps/uninstall/pipx.sh"
+    provides: ["python_app_mgmt"]
+    default_selected: true
+
+  # ---------------------------------------------------------------------------
+  # Infrastructure tooling
+  # ---------------------------------------------------------------------------
 
   terraform:
     name: "Terraform"
@@ -75,9 +199,201 @@ apps:
       commands: ["ansible-playbook"]
     provides: ["cm"]
 
+  ansible_lint:
+    name: "Ansible Lint"
+    description: "Linting and best-practice checks for Ansible"
+    category: "infra"
+    install:
+      module: "modules/apps/install/ansible_lint.sh"
+    uninstall:
+      module: "modules/apps/uninstall/ansible_lint.sh"
+    requires:
+      commands: ["ansible-lint"]
+    provides: ["lint"]
+
+  sops:
+    name: "SOPS"
+    description: "Secrets encryption for files in Git (use with age keys)"
+    category: "security"
+    install:
+      module: "modules/apps/install/sops.sh"
+    uninstall:
+      module: "modules/apps/uninstall/sops.sh"
+    requires:
+      commands: ["sops"]
+    provides: ["secrets_mgmt"]
+
+  age:
+    name: "age"
+    description: "Modern encryption tool commonly paired with SOPS"
+    category: "security"
+    install:
+      module: "modules/apps/install/age.sh"
+    uninstall:
+      module: "modules/apps/uninstall/age.sh"
+    requires:
+      commands: ["age"]
+    provides: ["secrets_mgmt"]
+
+  # ---------------------------------------------------------------------------
+  # Admin security baseline
+  # ---------------------------------------------------------------------------
+
+  ufw:
+    name: "UFW"
+    description: "Host firewall to restrict inbound access"
+    category: "security"
+    install:
+      module: "modules/apps/install/ufw.sh"
+    uninstall:
+      module: "modules/apps/uninstall/ufw.sh"
+    provides: ["firewall"]
+
+  fail2ban:
+    name: "Fail2ban"
+    description: "Blocks brute-force attacks based on log patterns"
+    category: "security"
+    install:
+      module: "modules/apps/install/fail2ban.sh"
+    uninstall:
+      module: "modules/apps/uninstall/fail2ban.sh"
+    provides: ["bruteforce_protection"]
+
+  unattended_upgrades:
+    name: "Unattended upgrades"
+    description: "Automatic security patching"
+    category: "security"
+    install:
+      module: "modules/apps/install/unattended_upgrades.sh"
+    uninstall:
+      module: "modules/apps/uninstall/unattended_upgrades.sh"
+    provides: ["auto_patching"]
+
+  chrony:
+    name: "Chrony"
+    description: "Accurate time synchronisation"
+    category: "security"
+    install:
+      module: "modules/apps/install/chrony.sh"
+    uninstall:
+      module: "modules/apps/uninstall/chrony.sh"
+    provides: ["time_sync"]
+
+  apparmor_utils:
+    name: "AppArmor utilities"
+    description: "Utilities for managing AppArmor profiles"
+    category: "security"
+    install:
+      module: "modules/apps/install/apparmor_utils.sh"
+    uninstall:
+      module: "modules/apps/uninstall/apparmor_utils.sh"
+    provides: ["mac"]
+
+  # ---------------------------------------------------------------------------
+  # Operational toolkit
+  # ---------------------------------------------------------------------------
+
+  htop:
+    name: "htop"
+    description: "Interactive process viewer"
+    category: "ops"
+    install:
+      module: "modules/apps/install/htop.sh"
+    uninstall:
+      module: "modules/apps/uninstall/htop.sh"
+    provides: ["monitoring_tools"]
+
+  iotop:
+    name: "iotop"
+    description: "I/O usage viewer"
+    category: "ops"
+    install:
+      module: "modules/apps/install/iotop.sh"
+    uninstall:
+      module: "modules/apps/uninstall/iotop.sh"
+    provides: ["monitoring_tools"]
+
+  sysstat:
+    name: "sysstat"
+    description: "Performance monitoring utilities (sar, iostat)"
+    category: "ops"
+    install:
+      module: "modules/apps/install/sysstat.sh"
+    uninstall:
+      module: "modules/apps/uninstall/sysstat.sh"
+    provides: ["monitoring_tools"]
+
+  dnsutils:
+    name: "dnsutils"
+    description: "DNS troubleshooting tools (dig, nslookup)"
+    category: "ops"
+    install:
+      module: "modules/apps/install/dnsutils.sh"
+    uninstall:
+      module: "modules/apps/uninstall/dnsutils.sh"
+    provides: ["network_tools"]
+
+  iproute2:
+    name: "iproute2"
+    description: "Networking utilities (ip, ss)"
+    category: "ops"
+    install:
+      module: "modules/apps/install/iproute2.sh"
+    uninstall:
+      module: "modules/apps/uninstall/iproute2.sh"
+    provides: ["network_tools"]
+
+  logrotate:
+    name: "logrotate"
+    description: "Prevents uncontrolled log growth"
+    category: "ops"
+    install:
+      module: "modules/apps/install/logrotate.sh"
+    uninstall:
+      module: "modules/apps/uninstall/logrotate.sh"
+    provides: ["log_mgmt"]
+
+  tmux:
+    name: "tmux"
+    description: "Reliable remote sessions"
+    category: "ops"
+    install:
+      module: "modules/apps/install/tmux.sh"
+    uninstall:
+      module: "modules/apps/uninstall/tmux.sh"
+    provides: ["session_mgmt"]
+
+  # ---------------------------------------------------------------------------
+  # Optional admin capabilities
+  # ---------------------------------------------------------------------------
+
+  cloud_init:
+    name: "cloud-init"
+    description: "First-boot configuration tooling for templates"
+    category: "infra"
+    install:
+      module: "modules/apps/install/cloud_init.sh"
+    uninstall:
+      module: "modules/apps/uninstall/cloud_init.sh"
+    provides: ["cloud_init"]
+
+  qemu_guest_agent:
+    name: "QEMU guest agent"
+    description: "Improved VM lifecycle operations when running inside Proxmox"
+    category: "infra"
+    install:
+      module: "modules/apps/install/qemu_guest_agent.sh"
+    uninstall:
+      module: "modules/apps/uninstall/qemu_guest_agent.sh"
+    provides: ["vm_agent"]
+
+  # ---------------------------------------------------------------------------
+  # Containers and networking
+  # ---------------------------------------------------------------------------
+
   docker:
     name: "Docker Engine"
-    description: "Container runtime for local workloads"
+    description: "Container runtime for local workloads (not recommended on admin control plane)"
     category: "container"
     install:
       module: "modules/apps/install/docker.sh"
@@ -98,3 +414,43 @@ apps:
     requires:
       commands: ["tailscale"]
     provides: ["vpn"]
+
+  # ---------------------------------------------------------------------------
+  # Kubernetes / Talos admin tooling (client-side)
+  # ---------------------------------------------------------------------------
+
+  kubectl:
+    name: "kubectl"
+    description: "Kubernetes CLI"
+    category: "kubernetes"
+    install:
+      module: "modules/apps/install/kubectl.sh"
+    uninstall:
+      module: "modules/apps/uninstall/kubectl.sh"
+    requires:
+      commands: ["kubectl"]
+    provides: ["k8s_cli"]
+
+  helm:
+    name: "Helm"
+    description: "Kubernetes package manager"
+    category: "kubernetes"
+    install:
+      module: "modules/apps/install/helm.sh"
+    uninstall:
+      module: "modules/apps/uninstall/helm.sh"
+    requires:
+      commands: ["helm"]
+    provides: ["k8s_pkg_mgmt"]
+
+  talosctl:
+    name: "talosctl"
+    description: "Talos Linux CLI"
+    category: "kubernetes"
+    install:
+      module: "modules/apps/install/talosctl.sh"
+    uninstall:
+      module: "modules/apps/uninstall/talosctl.sh"
+    requires:
+      commands: ["talosctl"]
+    provides: ["talos_cli"]

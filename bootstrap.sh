@@ -1,43 +1,19 @@
 #!/usr/bin/env bash
-# ==============================================================================
+# -----------------------------------------------------------------------------
 # File: bootstrap.sh
 # Created: 2026-01-31
-# Updated: 2026-01-31
+# Updated: 2026-02-01
 # Description: Bootstrapper for host prerequisites and repo setup.
 # Purpose: Ensures required baseline packages and permissions exist to run homelab.
 # Usage:
 #   ./bootstrap.sh
 # Prerequisites:
-#   - Bash
-#   - See docs/developers/development-standards.md
+#   - Debian/Ubuntu/Proxmox with apt
 # Notes:
-# - Follow repo command/UI contracts.
-# - Update 'Updated' when behaviour changes.
-# ==============================================================================
-# ==========================================================
-# Filename: bootstrap.sh
-# Created:  2026-01-31
-# Updated:  2026-01-31
-# Description:
-#   Bootstrap installer for fouchger_homelab.
-# Purpose:
-#   - Install minimum dependencies required to run the homelab runtime
-#     (git, dialog, curl, ca-certificates)
-#   - Clone or update the repo (unless SKIP_CLONE=1)
-#   - Ensure required scripts are executable
-#   - Hand off to homelab.sh
-# Usage:
-#   curl -fsSL <raw bootstrap.sh url> | bash
-#   or
-#   ./bootstrap.sh
-# Prerequisites:
-#   - Debian/Ubuntu with apt
-#   - Sudo access for package installation
-# Notes:
-#   - Repo URL and branch can be overridden via HOMELAB_GIT_URL and HOMELAB_BRANCH.
-#   - If SKIP_CLONE=1, this script assumes HOMELAB_DIR already contains the repo.
+#   - Installs a light baseline required for the runtime and Sprint 3 config parsing.
 #   - This script aims to be safe to re-run.
-# ==========================================================
+# -----------------------------------------------------------------------------
+
 set -Eeuo pipefail
 
 HOMELAB_GIT_URL="${HOMELAB_GIT_URL:-https://github.com/Fouchger/fouchger_homelab.git}"
@@ -48,7 +24,7 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 require_apt() {
   if ! have_cmd apt-get; then
-    echo "❌ This bootstrap currently supports Debian/Ubuntu (apt-get required)." >&2
+    echo "❌ This bootstrap currently supports Debian/Ubuntu/Proxmox (apt-get required)." >&2
     exit 1
   fi
 }
@@ -68,7 +44,8 @@ install_deps() {
   local sudo_cmd
   sudo_cmd="$(need_sudo || true)"
 
-  local pkgs=(git dialog curl ca-certificates)
+  # Sprint 3 uses python3 + python3-yaml for config parsing.
+  local pkgs=(git dialog curl ca-certificates python3 python3-yaml)
   echo "🧰 Installing dependencies: ${pkgs[*]}"
   $sudo_cmd apt-get update -y
   $sudo_cmd apt-get install -y "${pkgs[@]}"
@@ -93,6 +70,7 @@ clone_or_update() {
 
 ensure_executables() {
   echo "🔧 Ensuring scripts are executable"
+
   # Make all .sh executable, excluding archived legacy code.
   find "$HOMELAB_DIR" \
     -path "$HOMELAB_DIR/archieve" -prune -o \
@@ -122,7 +100,8 @@ run_homelab() {
 }
 
 main() {
-  if ! have_cmd git || ! have_cmd dialog; then
+  # Install deps if critical runtime commands are missing.
+  if ! have_cmd git || ! have_cmd dialog || ! have_cmd python3; then
     install_deps
   fi
   clone_or_update

@@ -2,15 +2,18 @@
 # -----------------------------------------------------------------------------
 # File: commands/profiles.sh
 # Created: 2026-01-31
-# Updated: 2026-01-31
+# Updated: 2026-02-01
 # Description: Command entrypoint (profiles).
 # Purpose: Select an application profile (set of apps) and persist selections.
 # Usage:
 #   ./commands/profiles.sh
-#   ./commands/profiles.sh --profile development --mode replace
+#   ./commands/profiles.sh --profile admin_control_plane --mode replace
+#   ./commands/profiles.sh --tier admin
 # Notes:
 #   - Profile defs live in config/profiles.yml.
 #   - Selections persisted to state/selections.env (non-secret).
+#   - Profiles are currently admin-node focused (Sprint 3). Server role profiles
+#     are documented but provisioned in later sprints.
 # -----------------------------------------------------------------------------
 
 set -Eeuo pipefail
@@ -31,6 +34,7 @@ profiles_impl() {
 
   local profile_arg=""
   local mode="replace" # replace|add
+  local tier_filter="" # admin|server (future)
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -42,8 +46,12 @@ profiles_impl() {
         mode="${2:-replace}"
         shift 2
         ;;
+      --tier)
+        tier_filter="${2:-}"
+        shift 2
+        ;;
       -h|--help)
-        ui_info "Profiles" "Options:\n  --profile <profile id>\n  --mode <replace|add>\n\nIf not provided, an interactive selection is used (dialog/text)."
+        ui_info "Profiles" "Options:\n  --profile <profile id>\n  --mode <replace|add>\n  --tier <admin|server>\n\nIf not provided, an interactive selection is used (dialog/text)."
         return 0
         ;;
       *)
@@ -60,14 +68,35 @@ profiles_impl() {
     # Render menu with profile ids.
     local -a items
     items=()
+
     local id
     while IFS= read -r id; do
       [[ -z "${id}" ]] && continue
-      local name desc
+
+      local tier name desc
+      tier="$(yaml_get "${ROOT_DIR}/config/profiles.yml" "profiles.${id}.tier" 2>/dev/null || echo "")"
+      if [[ -n "${tier_filter}" ]] && [[ "${tier}" != "${tier_filter}" ]]; then
+        continue
+      fi
+
       name="$(yaml_get "${ROOT_DIR}/config/profiles.yml" "profiles.${id}.name" 2>/dev/null || echo "${id}")"
       desc="$(yaml_get "${ROOT_DIR}/config/profiles.yml" "profiles.${id}.description" 2>/dev/null || echo "")"
-      items+=("${id}" "${name} - ${desc}")
+
+      # Tag the tier in the display label so operators understand scope.
+      local label
+      if [[ -n "${tier}" ]]; then
+        label="[${tier}] ${name} - ${desc}"
+      else
+        label="${name} - ${desc}"
+      fi
+
+      items+=("${id}" "${label}")
     done < <(yaml_list "${ROOT_DIR}/config/profiles.yml" "profiles")
+
+    if [[ ${#items[@]} -eq 0 ]]; then
+      ui_warn "Profiles" "No profiles matched your filters.\n\nTier filter: ${tier_filter:-<none>}"
+      return 0
+    fi
 
     profile="$(ui_menu "Profiles" "Select a profile" "${items[@]}")"
     if [[ -z "${profile}" ]]; then

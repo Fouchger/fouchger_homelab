@@ -12,6 +12,11 @@ This pack is documentation-only. It is written so implementation across `bootstr
 - [docs/developers/validation-and-errors.md](/fouchger_homelab/docs/developers/validation-and-errors.md)
 - [docs/developers/extending.md](/fouchger_homelab/docs/developers/extending.md)
 
+
+### Profiles and platform
+- [docs/profiles/overview.md](/fouchger_homelab/docs/profiles/overview.md)
+- [docs/platform/kubernetes-talos.md](/fouchger_homelab/docs/platform/kubernetes-talos.md)
+
 ### Specifications
 - [docs/specs/01-functional-overview.md](/fouchger_homelab/docs/specs/01-functional-overview.md)
 - [docs/specs/02-config-and-state-schema.md](/fouchger_homelab/docs/specs/02-config-and-state-schema.md)
@@ -35,7 +40,7 @@ This pack is documentation-only. It is written so implementation across `bootstr
 - [docs/ADRs/0002-dry-run-and-replay.md](/fouchger_homelab/docs/ADRs/0002-dry-run-and-replay.md)
 - [docs/ADRs/0003-validation-gates.md](/fouchger_homelab/docs/ADRs/0003-validation-gates.md)
 
-Last updated: 2026-01-29
+Last updated: 2026-02-01
 
 ### Low-level specifications
 - docs/specs/20-low-level/README.md

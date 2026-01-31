@@ -6,7 +6,8 @@ Provide a single interactive, menu-driven homelab automation experience that can
 2. Set up Proxmox access (user, role, token).
 3. Download and cache LXC/VM templates (Ubuntu 22+ and latest Talos).
 4. Provision LXC/VM workloads via Terraform.
-5. Configure workloads via Ansible.
+5. Configure workloads via Ansible (including Talos-based Kubernetes enablement).
+   - Kubernetes on Talos includes MetalLB for LAN LoadBalancer services and an Ingress controller (Traefik or NGINX).
 6. Support safe experimentation through dry run and operational resilience through replay.
 
 ## Minimal baseline you can rely on
@@ -22,6 +23,7 @@ Tier 2: infrastructure baseline (only for Proxmox + Terraform + Ansible workflow
 - terraform, ansible
 
 ## Key design principles
+- Kubernetes standard: Talos Linux with MetalLB (LAN LoadBalancer) and an Ingress controller (Traefik or NGINX).
 - Single look and feel via dialog wrappers.
 - Declarative configuration for apps, profiles, UI, and validations.
 - Idempotent modules and deterministic execution.

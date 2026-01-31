@@ -133,8 +133,11 @@ profiles:
   - `state/runs/latest.env` (recommended, for replay)
 
 ### Minimal profiles to rely on
-- `core`: Tier 1 baseline
-- `infra_core`: Tier 1 baseline plus Terraform and Ansible
+- `admin_control_plane`: Admin control plane baseline (recommended default)
+- `admin_security_baseline`: Admin hardening (recommended)
+- `admin_operational_toolkit`: Ops tooling (optional)
+
+Legacy convenience profiles are still available (`core`, `infra_core`, etc.), but the recommended path is the admin profile set.
 
 ### Example (as implemented in this repo)
 ```yaml
