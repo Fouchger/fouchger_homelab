@@ -25,7 +25,7 @@ _settings_show() {
   local title="$1" body="$2"
 
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
-    dlg msgbox --title "$title" --intent info -- -- "$body"
+    dlg msgbox --title "$title" --intent info -- "$body"
   else
     echo
     echo "$title"
@@ -60,7 +60,7 @@ settings_change_theme() {
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
     choice="$(
       dlg radiolist --title "Theme" --intent normal \
-        --height 15 --width 70 --list-height 6 -- -- \
+        --height 15 --width 70 --list-height 6 -- \
         "Select your Catppuccin flavour" \
         "LATTE" "Light" $( [[ "$current" == "LATTE" ]] && echo "on" || echo "off" ) \
         "FRAPPE" "Mid" $( [[ "$current" == "FRAPPE" ]] && echo "on" || echo "off" ) \
@@ -93,7 +93,7 @@ settings_change_log_level() {
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
     choice="$(
       dlg radiolist --title "Logging" --intent info \
-        --height 15 --width 70 --list-height 6 -- -- \
+        --height 15 --width 70 --list-height 6 -- \
         "Select the default log level" \
         "DEBUG" "Full command output" $( [[ "$current" == "DEBUG" ]] && echo "on" || echo "off" ) \
         "INFO" "Normal" $( [[ "$current" == "INFO" ]] && echo "on" || echo "off" ) \
@@ -126,7 +126,7 @@ settings_change_ui_mode() {
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
     choice="$(
       dlg radiolist --title "UI mode" --intent normal \
-        --height 15 --width 75 --list-height 6 -- -- \
+        --height 15 --width 75 --list-height 6 -- \
         "Force the UI mode (leave Auto for best compatibility)" \
         "AUTO" "Auto-detect" $( [[ -z "$current" ]] && echo "on" || echo "off" ) \
         "dialog" "Dialog UI" $( [[ "$current" == "dialog" ]] && echo "on" || echo "off" ) \
@@ -159,7 +159,7 @@ settings_change_repo_root() {
   local choice=""
 
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
-    choice="$(dlg inputbox --title "Repo root" --intent warn --height 12 --width 80 -- -- \
+    choice="$(dlg inputbox --title "Repo root" --intent warn --height 12 --width 80 -- \
       "Set a repo root override (leave blank to clear).\n\nCurrent: ${current:-<none>}" \
       "$current")" || return 0
   else
@@ -207,7 +207,7 @@ settings_change_dialog_widget_defaults() {
     (( menuh > 12 )) && menuh=12
     (( menuh < 1 )) && menuh=1
 
-    widget="$(dlg menu --title "Dialog defaults" --intent normal --height 20 --width 70 --list-height "$menuh" -- -- \
+    widget="$(dlg menu --title "Dialog defaults" --intent normal --height 20 --width 70 --list-height "$menuh" -- \
       "Choose a widget to set defaults for" \
       "${opts[@]}" \
     )" || return 0
@@ -230,7 +230,7 @@ settings_change_dialog_widget_defaults() {
   if [[ "${UI_MODE:-text}" == "dialog" ]]; then
     # form returns newline separated fields
     local out
-    out="$(dlg form --title "Defaults: $widget" --intent info --height 18 --width 70 --form-height 0 -- -- \
+    out="$(dlg form --title "Defaults: $widget" --intent info --height 18 --width 70 --form-height 0 -- \
       "Set defaults (0 means dialog decides)." \
       "Height" 1 1 "$cur_h" 1 18 8 0 \
       "Width" 2 1 "$cur_w" 2 18 8 0 \

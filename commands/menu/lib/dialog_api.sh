@@ -231,6 +231,14 @@ dlg() {
     esac
   done
 
+  # Guardrail: tolerate an accidental extra "--" after the wrapper delimiter.
+  # This prevents subtle argument shifting for widgets like menu/radiolist
+  # which can otherwise surface as dialog errors such as:
+  #   "Expected at least 20 tokens for --m, have 2"
+  if [[ "${1:-}" == "--" ]]; then
+    shift
+  fi
+
   # Defaults
   [[ -z "$height" ]] && height="$(dlg_default_get "$widget" "H" "${DLG_DEF_H[$widget]:-0}")"
   [[ -z "$width"  ]] && width="$(dlg_default_get "$widget" "W" "${DLG_DEF_W[$widget]:-0}")"
