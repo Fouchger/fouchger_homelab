@@ -13,6 +13,11 @@
 MENU_TITLE="Settings"
 MENU_PROMPT="View and update system settings"
 
+# Per-object sizing: Settings screens generally need a bit more space.
+MENU_DIALOG_HEIGHT="22"
+MENU_DIALOG_WIDTH="86"
+MENU_DIALOG_LIST_HEIGHT="12"
+
 declare -A MENU_ITEMS=(
     [1]="View current settings"
     [2]="Theme (Catppuccin flavour)"
@@ -25,14 +30,14 @@ declare -A MENU_ITEMS=(
 )
 
 declare -A MENU_ACTIONS=(
-    [1]="settings_view_current"
-    [2]="settings_change_theme"
-    [3]="settings_change_log_level"
-    [4]="settings_change_ui_mode"
-    [5]="settings_change_dialog_widget_defaults"
-    [6]="settings_change_repo_root"
-    [7]="settings_show_config_sources"
-    [0]="run_menu \"$MENU_DIR/main.menu.sh\""
+    [1]="call|settings_view_current"
+    [2]="call|settings_change_theme"
+    [3]="call|settings_change_log_level"
+    [4]="call|settings_change_ui_mode"
+    [5]="call|settings_change_dialog_widget_defaults"
+    [6]="call|settings_change_repo_root"
+    [7]="call|settings_show_config_sources"
+    [0]="menu|$MENU_DIR/main.menu.sh"
 )
 
-MENU_DEFAULT_ACTION="true"
+MENU_DEFAULT_ACTION="noop"

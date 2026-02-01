@@ -18,9 +18,9 @@ declare -A MENU_ITEMS=(
 )
 
 declare -A MENU_ACTIONS=(
-    [1]="uptime"
-    [2]="df -h"
-    [0]="run_menu \"$MENU_DIR/main.menu.sh\""
+    [1]="cmd|uptime"
+    [2]="cmd|df|-h"
+    [0]="menu|$MENU_DIR/main.menu.sh"
 )
 
-MENU_DEFAULT_ACTION="true"
+MENU_DEFAULT_ACTION="noop"

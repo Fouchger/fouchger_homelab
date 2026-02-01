@@ -14,6 +14,28 @@
 MENU_TITLE="Network Menu"
 MENU_PROMPT="Network actions"
 
+network_show_ips() {
+  if command -v ip >/dev/null 2>&1; then
+    ip -br addr
+  elif command -v ifconfig >/dev/null 2>&1; then
+    ifconfig -a
+  else
+    echo "No supported network tool found (need iproute2 or net-tools)." >&2
+    return 127
+  fi
+}
+
+network_show_routes() {
+  if command -v ip >/dev/null 2>&1; then
+    ip route
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -rn
+  else
+    echo "No supported routing tool found (need iproute2 or net-tools)." >&2
+    return 127
+  fi
+}
+
 declare -A MENU_ITEMS=(
     [1]="Show IP addresses"
     [2]="Show routes"
@@ -21,9 +43,9 @@ declare -A MENU_ITEMS=(
 )
 
 declare -A MENU_ACTIONS=(
-    [1]="ip -br addr || ifconfig -a"
-    [2]="ip route || netstat -rn"
-    [0]="run_menu \"$MENU_DIR/main.menu.sh\""
+    [1]="call|network_show_ips"
+    [2]="call|network_show_routes"
+    [0]="menu|$MENU_DIR/main.menu.sh"
 )
 
-MENU_DEFAULT_ACTION="true"
+MENU_DEFAULT_ACTION="noop"

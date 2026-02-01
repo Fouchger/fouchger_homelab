@@ -19,10 +19,10 @@ declare -A MENU_ITEMS=(
 )
 
 declare -A MENU_ACTIONS=(
-    [1]="run_menu \"$MENU_DIR/system.menu.sh\""
-    [2]="run_menu \"$MENU_DIR/network.menu.sh\""
-    [3]="run_menu \"$MENU_DIR/settings.menu.sh\""
-    [0]="exit 0"
+    [1]="menu|$MENU_DIR/system.menu.sh"
+    [2]="menu|$MENU_DIR/network.menu.sh"
+    [3]="menu|$MENU_DIR/settings.menu.sh"
+    [0]="exit|0"
 )
 
-MENU_DEFAULT_ACTION="exit 0"
+MENU_DEFAULT_ACTION="exit|0"
