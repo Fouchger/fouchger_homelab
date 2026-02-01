@@ -12,13 +12,18 @@
 #     summary artefacts. This wrapper simply hands off to the menu.
 # -----------------------------------------------------------------------------
 
-set -Eeuo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export ROOT_DIR
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-main() {
-  exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
-}
+# Load core libs
+source "$BASE_DIR/lib/env.sh"
+source "$BASE_DIR/lib/ui.sh"
+source "$BASE_DIR/lib/logger.sh"
+source "$BASE_DIR/lib/menu_runner.sh"
 
-main "$@"
+detect_environment
+
+# Default entry menu
+run_menu "$BASE_DIR/menus/main.menu.sh"
