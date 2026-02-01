@@ -53,6 +53,18 @@ resolve_root_dir() {
   local marker
   marker="$(_homelab_root_marker)"
 
+  # -1) Allow an explicit repo override (useful for installed wrappers).
+  if [[ -n "${HOMELAB_REPO_ROOT:-${B2B_REPO_ROOT:-}}" ]]; then
+    local override
+    override="${HOMELAB_REPO_ROOT:-${B2B_REPO_ROOT:-}}"
+    if [[ -d "$override" && -e "${override%/}/$marker" ]]; then
+      ROOT_DIR="$override"
+      export ROOT_DIR
+      printf '%s' "$ROOT_DIR"
+      return 0
+    fi
+  fi
+
   # 0) Honour existing ROOT_DIR only if it looks valid.
   if [[ -n "${ROOT_DIR:-}" && -d "${ROOT_DIR:-}" && -e "${ROOT_DIR%/}/$marker" ]]; then
     printf '%s' "$ROOT_DIR"

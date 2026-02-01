@@ -14,12 +14,14 @@ MENU_PROMPT="Choose an option"
 declare -A MENU_ITEMS=(
     [1]="$EMO_SYSTEM System Menu"
     [2]="$EMO_NET Network Menu"
+    [3]="⚙️ Settings"
     [0]="$EMO_EXIT Exit"
 )
 
 declare -A MENU_ACTIONS=(
     [1]="run_menu \"$MENU_DIR/system.menu.sh\""
     [2]="run_menu \"$MENU_DIR/network.menu.sh\""
+    [3]="run_menu \"$MENU_DIR/settings.menu.sh\""
     [0]="exit 0"
 )
 

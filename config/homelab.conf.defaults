@@ -1,0 +1,24 @@
+# -----------------------------------------------------------------------------
+# File: config/homelab.conf.defaults
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description:
+#   Default settings for fouchger_homelab-back_to_basic.
+#
+# Notes:
+#   - This file is shipped with the repo and is always loaded first.
+#   - Override in /etc or in your user config (see lib/config.sh).
+# -----------------------------------------------------------------------------
+
+# UI / theme
+CATPPUCCIN_FLAVOUR="MOCHA"
+FORCE_UI_MODE=""
+
+# Logging
+LOG_LEVEL="INFO"
+HOMELAB_LOG_FILE=""
+
+# Repo override (primarily for wrappers installed outside the repo)
+HOMELAB_REPO_ROOT=""
+
+# Dialog defaults can be set here using DIALOG_DEFAULT_* variables.

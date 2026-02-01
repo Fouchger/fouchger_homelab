@@ -23,8 +23,17 @@ set -euo pipefail
 # Resolve repository root.
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)/lib/paths.sh"
 
+# Load system + user settings.
+source "${ROOT_DIR}/lib/config.sh"
+homelab_config_load
+
+# Initialise logging early so the menu picks up LOG_LEVEL.
+source "${ROOT_DIR}/lib/logging.sh"
+homelab_log_init
+
 main() {
   # Allow a single knob to set the theme.
+  # Precedence: explicit CATPPUCCIN_FLAVOUR > HOMELAB_THEME alias > config default.
   export CATPPUCCIN_FLAVOUR="${CATPPUCCIN_FLAVOUR:-${HOMELAB_THEME:-MOCHA}}"
   exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
 }
