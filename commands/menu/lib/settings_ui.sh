@@ -207,7 +207,7 @@ settings_change_dialog_widget_defaults() {
     widget="$(dlg menu --title "Dialog defaults" --intent normal -- -- \
       "Choose a widget to set defaults for" \
       20 70 12 \
-      "${opts[@]}
+      "${opts[@]}" \
     )" || return 0
   else
     echo "Widgets: ${widgets[*]}"
