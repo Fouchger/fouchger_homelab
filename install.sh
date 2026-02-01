@@ -193,7 +193,7 @@ clone_or_update() {
 handoff_to_bootstrap() {
   cd "$HOMELAB_DIR"
   [[ -x "./bootstrap.sh" ]] || die "bootstrap.sh not found or not executable in ${HOMELAB_DIR}"
-
+  chmod +x *.sh
   info "🚀 Delegating to bootstrap.sh"
   # Single source of truth: bootstrap.sh handles deps, perms, and handoff.
   HOMELAB_GIT_URL="$HOMELAB_GIT_URL" HOMELAB_BRANCH="$HOMELAB_BRANCH" HOMELAB_DIR="$HOMELAB_DIR" HOMELAB_NO_RUN=1 bash ./bootstrap.sh
