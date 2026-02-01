@@ -21,12 +21,12 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/dialogrc.sh"
 
 # Defaults per widget (you can override via env vars; see dlg_default_get below)
 declare -A DLG_DEF_H=(
-  [menu]=15 [inputmenu]=15 [checklist]=18 [radiolist]=18 [buildlist]=18 [treeview]=18
-  [msgbox]=10 [yesno]=10 [infobox]=6
-  [inputbox]=10 [passwordbox]=10
-  [form]=20 [mixedform]=20 [passwordform]=20
+  [menu]=50 [inputmenu]=15 [checklist]=18 [radiolist]=18 [buildlist]=18 [treeview]=18
+  [msgbox]=50 [yesno]=10 [infobox]=6
+  [inputbox]=50 [passwordbox]=10
+  [form]=50 [mixedform]=20 [passwordform]=20
   [gauge]=8 [mixedgauge]=12 [pause]=8
-  [textbox]=20 [tailbox]=20 [tailboxbg]=20 [progressbox]=20 [programbox]=20 [prgbox]=20
+  [textbox]=50 [tailbox]=20 [tailboxbg]=20 [progressbox]=20 [programbox]=20 [prgbox]=20
   [fselect]=20 [dselect]=20 [editbox]=20
   [calendar]=0 [timebox]=0 [rangebox]=10
 )
