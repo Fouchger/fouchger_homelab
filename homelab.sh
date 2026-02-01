@@ -44,15 +44,20 @@ if [[ -z "${REPO_ROOT:-}" || ! -e "${REPO_ROOT}/.root_marker" ]]; then
     exit 1
   fi
 fi
-
+echo ""
+echo "---------------------------------------"
+echo "REPO ROOT: $REPO_ROOT"
+echo "---------------------------------------"
+echo ""
 export ROOT_DIR
 #------------------------------------------
 
 # Load core libs
-source "$ROOT_DIR/commands/menu/lib/env.sh"
-source "$ROOT_DIR/commands/menu/lib/ui.sh"
-source "$ROOT_DIR/commands/menu/lib/logger.sh"
-source "$ROOT_DIR/commands/menu/lib/menu_runner.sh"
+source "$ROOT_DIR/commands/menu/lib/*.sh"
+# source "$ROOT_DIR/commands/menu/lib/ui.sh"
+# source "$ROOT_DIR/commands/menu/lib/logger.sh"
+# source "$ROOT_DIR/commands/menu/lib/menu_runner.sh"
+source "$ROOT_DIR/commands/menu/menus/*.sh"
 
 detect_environment
 
