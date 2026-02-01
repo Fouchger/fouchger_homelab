@@ -52,14 +52,8 @@ echo ""
 export ROOT_DIR
 #------------------------------------------
 
-# Load core libs
-source "$ROOT_DIR/commands/menu/lib/*.sh"
-# source "$ROOT_DIR/commands/menu/lib/ui.sh"
-# source "$ROOT_DIR/commands/menu/lib/logger.sh"
-# source "$ROOT_DIR/commands/menu/lib/menu_runner.sh"
-source "$ROOT_DIR/commands/menu/menus/*.sh"
+main() {
+  exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
+}
 
-detect_environment
-
-# Default entry menu
-run_menu "$ROOT_DIR/commands/menu/menus/main.menu.sh"
+main "$@"

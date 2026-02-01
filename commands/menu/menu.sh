@@ -39,12 +39,14 @@ export ROOT_DIR
 #------------------------------------------
 
 # Load core libs
+source "$ROOT_DIR/commands/menu/lib/dialog_api.sh"
+source "$ROOT_DIR/commands/menu/lib/dialogrc.sh"
 source "$ROOT_DIR/commands/menu/lib/env.sh"
-source "$ROOT_DIR/commands/menu/lib/ui.sh"
 source "$ROOT_DIR/commands/menu/lib/logger.sh"
 source "$ROOT_DIR/commands/menu/lib/menu_runner.sh"
-source "$ROOT_DIR/commands/menu/lib/dialogrc.sh"
-source "$ROOT_DIR/commands/menu/lib/dialog_api.sh"
+source "$ROOT_DIR/commands/menu/lib/ui.sh"
+source "$ROOT_DIR/commands/menu/menus/main.menu.sh"
+source "$ROOT_DIR/commands/menu/menus/system.menu.sh"
 
 detect_environment
 
