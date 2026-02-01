@@ -31,7 +31,7 @@ if [[ -z "${REPO_ROOT:-}" || ! -e "${REPO_ROOT}/.root_marker" ]]; then
   fi
 fi
 
-echo "Root Dir = $REPO_ROOT"
+export "$REPO_ROOT"
 #------------------------------------------
 
 # Load core libs
