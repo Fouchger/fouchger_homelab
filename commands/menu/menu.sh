@@ -1,13 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve repo root (prefer git when available)
-if git_root="$(.root_marker rev-parse --show-toplevel 2>/dev/null)"; then
-  ROOT_DIR="$git_root"
-else
-  ROOT_DIR="$(pwd)"
+#------------------------------------------
+# Find the repository root by locating the directory that contains ".root_marker"
+find_repo_root() {
+  local dir="${1:-$PWD}"
+
+  while :; do
+    if [[ -e "$dir/.root_marker" ]]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+
+    [[ "$dir" == "/" ]] && return 1
+    dir="$(dirname -- "$dir")"
+  done
+}
+
+# Prefer script location as the starting point (works even if invoked from elsewhere)
+script_path="${BASH_SOURCE[0]:-$0}"
+start_dir="$(cd -- "$(dirname -- "$script_path")" 2>/dev/null && pwd -P || pwd -P)"
+
+# If REPO_ROOT is unset (or incorrect), discover it
+if [[ -z "${REPO_ROOT:-}" || ! -e "${REPO_ROOT}/.root_marker" ]]; then
+  if REPO_ROOT="$(find_repo_root "$start_dir")"; then
+    export REPO_ROOT
+  else
+    echo "ERROR: Could not locate repo root (.root_marker not found starting from: $start_dir)" >&2
+    exit 1
+  fi
 fi
-export ROOT_DIR
+
+echo "Root Dir = $REPO_ROOT"
+#------------------------------------------
 
 # Load core libs
 source "$ROOT_DIR/commands/menu/lib/env.sh"
