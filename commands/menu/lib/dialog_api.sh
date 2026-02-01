@@ -251,22 +251,30 @@ dlg() {
     # ----- lists/menus -----
     menu|inputmenu)
       # args: text [ tag item ]...
-      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$list_h" "${args[@]:1}")" || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
+      local item_count=$(( ( ${#args[@]} - 1 ) / 2 ))
+      local lh="$list_h"
+      (( lh <= 0 )) && lh="$item_count"
+      (( item_count > 0 && lh > item_count )) && lh="$item_count"
+
+      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
+        || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
       [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
       printf '%s' "$out"
       ;;
+
     checklist|radiolist|buildlist)
       # args: text [ tag item status ]...
-      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$list_h" "${args[@]:1}")" || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
+      local item_count=$(( ( ${#args[@]} - 1 ) / 3 ))
+      local lh="$list_h"
+      (( lh <= 0 )) && lh="$item_count"
+      (( item_count > 0 && lh > item_count )) && lh="$item_count"
+
+      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
+        || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
       [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
       printf '%s' "$out"
       ;;
-    treeview)
-      # args: text [ tag item status depth ]...
-      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$list_h" "${args[@]:1}")" || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
-      [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
-      printf '%s' "$out"
-      ;;
+
 
     # ----- message boxes -----
     msgbox|yesno|infobox)
@@ -309,6 +317,19 @@ dlg() {
       [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
       return $st
       ;;
+    treeview)
+      # args: text [ tag item status depth ]...
+      local item_count=$(( ( ${#args[@]} - 1 ) / 4 ))
+      local lh="$list_h"
+      (( lh <= 0 )) && lh="$item_count"
+      (( item_count > 0 && lh > item_count )) && lh="$item_count"
+
+      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
+        || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
+      [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
+      printf '%s' "$out"
+      ;;
+
 
     # ----- progress -----
     gauge)
