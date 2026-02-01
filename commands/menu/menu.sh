@@ -3,7 +3,7 @@ set -euo pipefail
 
 #------------------------------------------
 # Find the repository root by locating the directory that contains ".root_marker"
-find_repo_root() {
+find_ROOT_DIR() {
   local dir="${1:-$PWD}"
 
   while :; do
@@ -21,16 +21,20 @@ find_repo_root() {
 script_path="${BASH_SOURCE[0]:-$0}"
 start_dir="$(cd -- "$(dirname -- "$script_path")" 2>/dev/null && pwd -P || pwd -P)"
 
-# If REPO_ROOT is unset (or incorrect), discover it
-if [[ -z "${REPO_ROOT:-}" || ! -e "${REPO_ROOT}/.root_marker" ]]; then
-  if REPO_ROOT="$(find_repo_root "$start_dir")"; then
-    export REPO_ROOT
+# If ROOT_DIR is unset (or incorrect), discover it
+if [[ -z "${ROOT_DIR:-}" || ! -e "${ROOT_DIR}/.root_marker" ]]; then
+  if ROOT_DIR="$(find_ROOT_DIR "$start_dir")"; then
+    export ROOT_DIR
   else
     echo "ERROR: Could not locate repo root (.root_marker not found starting from: $start_dir)" >&2
     exit 1
   fi
 fi
-
+echo ""
+echo "---------------------------------------"
+echo "REPO ROOT: $ROOT_DIR"
+echo "---------------------------------------"
+echo ""
 export ROOT_DIR
 #------------------------------------------
 
