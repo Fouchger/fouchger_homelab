@@ -204,9 +204,13 @@ settings_change_dialog_widget_defaults() {
     for k in "${widgets[@]}"; do
       opts+=("$k" "$k")
     done
+        local menuh="${#widgets[@]}"
+    (( menuh > 12 )) && menuh=12
+    (( menuh < 1 )) && menuh=1
+
     widget="$(dlg menu --title "Dialog defaults" --intent normal -- -- \
       "Choose a widget to set defaults for" \
-      20 70 12 \
+      20 70 "$menuh" \
       "${opts[@]}" \
     )" || return 0
   else

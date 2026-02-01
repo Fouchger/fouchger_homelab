@@ -133,15 +133,41 @@ dlg__dialog_common_opts() {
 
 dlg__run() {
   # Non-output widgets. Important: keep stdin intact for gauge/programbox/progressbox piping.
+  #
+  # Notes:
+  #   - This wrapper is resilient under `set -e` so a dialog cancel/failure does not
+  #     tear down the entire menu flow.
   local rc="$1"; shift
+
+  local had_errexit=0
+  case "$-" in *e*) had_errexit=1 ;; esac
+
+  set +e
   DIALOGRC="$rc" dialog "$@" >"$TTY_DEV" 2>&1
+  local st=$?
+  (( had_errexit )) && set -e
+
+  return $st
 }
 
 dlg__out() {
   # Output widgets: capture stderr output while dialog draws to tty.
+  #
+  # Notes:
+  #   - dialog writes interactive content to stdout, and user selections to stderr.
+  #   - Under `set -e`, a non-zero dialog status can otherwise abort the whole script.
   local rc="$1"; shift
+
+  local had_errexit=0
+  case "$-" in *e*) had_errexit=1 ;; esac
+
+  set +e
   local out
-  out=$(DIALOGRC="$rc" dialog "$@" 2>&1 >"$TTY_DEV") || return $?
+  out=$(DIALOGRC="$rc" dialog "$@" 2>&1 >"$TTY_DEV")
+  local st=$?
+  (( had_errexit )) && set -e
+
+  (( st != 0 )) && return $st
   printf '%s' "$out"
 }
 
@@ -247,14 +273,22 @@ dlg() {
   # Widget dispatcher
   local -a args=("$@")
   local out
-  case "$widget" in
+    case "$widget" in
     # ----- lists/menus -----
     menu|inputmenu)
       # args: text [ tag item ]...
       local item_count=$(( ( ${#args[@]} - 1 ) / 2 ))
+      if (( item_count <= 0 )); then
+        # Avoid hard failures when the caller provides no items (common in degraded environments).
+        dlg__run "$rc" "${common[@]}" --msgbox "No options available." 8 50
+        [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
+        return 1
+      fi
+
       local lh="$list_h"
       (( lh <= 0 )) && lh="$item_count"
-      (( item_count > 0 && lh > item_count )) && lh="$item_count"
+      (( lh > item_count )) && lh="$item_count"
+      (( lh < 1 )) && lh=1
 
       out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
         || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
@@ -265,9 +299,16 @@ dlg() {
     checklist|radiolist|buildlist)
       # args: text [ tag item status ]...
       local item_count=$(( ( ${#args[@]} - 1 ) / 3 ))
+      if (( item_count <= 0 )); then
+        dlg__run "$rc" "${common[@]}" --msgbox "No options available." 8 50
+        [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
+        return 1
+      fi
+
       local lh="$list_h"
       (( lh <= 0 )) && lh="$item_count"
-      (( item_count > 0 && lh > item_count )) && lh="$item_count"
+      (( lh > item_count )) && lh="$item_count"
+      (( lh < 1 )) && lh=1
 
       out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
         || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
@@ -275,6 +316,25 @@ dlg() {
       printf '%s' "$out"
       ;;
 
+    treeview)
+      # args: text [ tag item status depth ]...
+      local item_count=$(( ( ${#args[@]} - 1 ) / 4 ))
+      if (( item_count <= 0 )); then
+        dlg__run "$rc" "${common[@]}" --msgbox "No options available." 8 50
+        [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
+        return 1
+      fi
+
+      local lh="$list_h"
+      (( lh <= 0 )) && lh="$item_count"
+      (( lh > item_count )) && lh="$item_count"
+      (( lh < 1 )) && lh=1
+
+      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
+        || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
+      [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
+      printf '%s' "$out"
+      ;;
 
     # ----- message boxes -----
     msgbox|yesno|infobox)
@@ -317,19 +377,6 @@ dlg() {
       [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
       return $st
       ;;
-    treeview)
-      # args: text [ tag item status depth ]...
-      local item_count=$(( ( ${#args[@]} - 1 ) / 4 ))
-      local lh="$list_h"
-      (( lh <= 0 )) && lh="$item_count"
-      (( item_count > 0 && lh > item_count )) && lh="$item_count"
-
-      out="$(dlg__out "$rc" "${common[@]}" "--$widget" "${args[0]}" "$height" "$width" "$lh" "${args[@]:1}")" \
-        || { [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"; return $?; }
-      [[ -f "$tmp_rc" && "$tmp_rc" == *dlgrc.* ]] && rm -f "$tmp_rc"
-      printf '%s' "$out"
-      ;;
-
 
     # ----- progress -----
     gauge)
