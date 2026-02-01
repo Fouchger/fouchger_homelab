@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve repo root (prefer git when available)
+if git_root="$(.root_marker rev-parse --show-toplevel 2>/dev/null)"; then
+  ROOT_DIR="$git_root"
+else
+  ROOT_DIR="$(pwd)"
+fi
 export ROOT_DIR
 
 # Load core libs
