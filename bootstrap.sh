@@ -189,22 +189,33 @@ clone_or_update() {
   fi
 }
 
-handoff_to_bootstrap() {
-  cd "$HOMELAB_DIR"
-  chmod +x *.sh
-  [[ -x "./bootstrap.sh" ]] || die "bootstrap.sh not found or not executable in ${HOMELAB_DIR}"
+ensure_executables() {
+  info "🔧 Ensuring scripts are executable"
 
-  info "🚀 Delegating to bootstrap.sh"
-  # Single source of truth: bootstrap.sh handles deps, perms, and handoff.
-  REPO_URL="$HOMELAB_GIT_URL" REPO_REF="$HOMELAB_BRANCH" INSTALL_DIR="$HOMELAB_DIR" SKIP_CLONE=1 ./bootstrap.sh
+  # Make all .sh executable, excluding archived legacy code.
+  find "$HOMELAB_DIR" \
+    -path "$HOMELAB_DIR/archieve" -prune -o \
+    -type f -name "*.sh" -exec chmod +x {} \;
+
+  # Apply config/executables.list (if present)
+  local list_file="$HOMELAB_DIR/config/executables.list"
+  if [[ -f "$list_file" ]]; then
+    while IFS= read -r rel; do
+      [[ -z "$rel" ]] && continue
+      [[ "$rel" =~ ^# ]] && continue
+      local target="$HOMELAB_DIR/$rel"
+      if [[ -d "$target" ]]; then
+        find "$target" \
+          -path "$HOMELAB_DIR/archieve" -prune -o \
+          -type f -name "*.sh" -exec chmod +x {} \;
+      elif [[ -f "$target" ]]; then
+        chmod +x "$target"
+      fi
+    done < "$list_file"
+  fi
 }
-# ---------------------------------- Main -------------------------------------
 
-main() {
-  validate_config
-  ensure_deps
-  clone_or_update
-  handoff_to_bootstrap
+run_homelab() {
+  info "🚀 Launching homelab.sh"
+  (cd "$HOMELAB_DIR" && ./homelab.sh)
 }
-
-main "$@"

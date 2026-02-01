@@ -1,0 +1,10 @@
+# ==========================================================
+# config/executables.list
+# Created: 29/01/2026
+# Updated: 29/01/2026
+# Purpose: 
+#    - List files that need to be executable.  
+#    - .sh files are automatically made executable
+# ==========================================================
+# One relative path per line
+homelab.sh
