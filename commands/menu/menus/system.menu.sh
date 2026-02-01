@@ -12,7 +12,7 @@ declare -A MENU_ITEMS=(
 declare -A MENU_ACTIONS=(
     [1]="uptime"
     [2]="df -h"
-    [0]="run_menu \"$BASE_DIR/menus/main.menu.sh\""
+    [0]="run_menu \"$ROOT_DIR/menus/main.menu.sh\""
 )
 
 MENU_DEFAULT_ACTION="true"
