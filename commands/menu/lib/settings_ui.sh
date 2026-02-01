@@ -44,6 +44,10 @@ UI mode (FORCE_UI_MODE):   ${FORCE_UI_MODE:-<auto>}
 Log level (LOG_LEVEL):     ${LOG_LEVEL:-INFO}
 Repo override:             ${HOMELAB_REPO_ROOT:-<none>}
 Log file:                  ${HOMELAB_LOG_FILE:-<default>}
+
+Dialog screen:             BG=${DIALOG_SCREEN_BG:-<auto>} FG=${DIALOG_SCREEN_FG:-<auto>}
+Dialog box:                BG=${DIALOG_DIALOG_BG:-<auto>} FG=${DIALOG_DIALOG_FG:-<auto>}
+Dialog shadow:             ${DIALOG_USE_SHADOW:-OFF}
 EOF
 }
 
@@ -269,6 +273,140 @@ settings_change_dialog_widget_defaults() {
   [[ -n "${DLG_DEF_FORMH[$widget]:-}" ]] && export "DIALOG_DEFAULT_${up}_FORMH"="$f"
 
   _settings_show "Dialog defaults" "Updated defaults for $widget"
+}
+
+
+# -----------------------------------------------------------------------------
+# Dialog appearance (background/shadow)
+# -----------------------------------------------------------------------------
+
+_settings_colour_options() {
+  # Returns a flat list suitable for dialog menu/radiolist:
+  # tag item ...
+  echo "INHERIT" "Use Catppuccin default"        "BLACK" "Black"        "RED" "Red"        "GREEN" "Green"        "YELLOW" "Yellow"        "BLUE" "Blue"        "MAGENTA" "Magenta"        "CYAN" "Cyan"        "WHITE" "White"
+}
+
+_settings_pick_colour() {
+  # Usage: _settings_pick_colour "Title" "Prompt" "CURRENT"
+  # Returns: "" for INHERIT, else a curses colour name.
+  local title="$1" prompt="$2" current="${3:-}"
+
+  local cur="${current^^}"
+  [[ -z "$cur" ]] && cur="INHERIT"
+
+  if [[ "${UI_MODE:-text}" == "dialog" ]]; then
+    local out
+    # radiolist: tag item on/off ...
+    out="$(
+      dlg radiolist --title "$title" --intent normal         --height 18 --width 72 --list-height 10 --         "$prompt"         "INHERIT" "Use Catppuccin default" $( [[ "$cur" == "INHERIT" ]] && echo "on" || echo "off" )         "BLACK" "Black" $( [[ "$cur" == "BLACK" ]] && echo "on" || echo "off" )         "RED" "Red" $( [[ "$cur" == "RED" ]] && echo "on" || echo "off" )         "GREEN" "Green" $( [[ "$cur" == "GREEN" ]] && echo "on" || echo "off" )         "YELLOW" "Yellow" $( [[ "$cur" == "YELLOW" ]] && echo "on" || echo "off" )         "BLUE" "Blue" $( [[ "$cur" == "BLUE" ]] && echo "on" || echo "off" )         "MAGENTA" "Magenta" $( [[ "$cur" == "MAGENTA" ]] && echo "on" || echo "off" )         "CYAN" "Cyan" $( [[ "$cur" == "CYAN" ]] && echo "on" || echo "off" )         "WHITE" "White" $( [[ "$cur" == "WHITE" ]] && echo "on" || echo "off" )
+    )" || return 1
+    [[ "$out" == "INHERIT" ]] && out=""
+    printf '%s' "$out"
+    return 0
+  fi
+
+  echo "Current: ${cur}"
+  echo "Options: INHERIT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE"
+  read -r -p "Enter colour: " cur
+  cur="${cur^^}"
+  [[ "$cur" == "INHERIT" ]] && cur=""
+  printf '%s' "$cur"
+}
+
+_settings_set_colour_pair() {
+  # Usage: _settings_set_colour_pair "Screen" KEY_BG KEY_FG CURRENT_BG CURRENT_FG
+  local label="$1" key_bg="$2" key_fg="$3" cur_bg="$4" cur_fg="$5"
+
+  local bg fg
+  bg="$(_settings_pick_colour "$label background" "Select ${label,,} background colour" "$cur_bg")" || return 0
+  fg="$(_settings_pick_colour "$label text" "Select ${label,,} text (foreground) colour" "$cur_fg")" || return 0
+
+  homelab_config_set_kv "$key_bg" "$bg"
+  homelab_config_set_kv "$key_fg" "$fg"
+  export "$key_bg"="$bg"
+  export "$key_fg"="$fg"
+
+  _settings_show "Dialog appearance" "Updated ${label,,} colours.
+
+BG=${bg:-<auto>} FG=${fg:-<auto>}
+
+Takes effect immediately for new screens."
+}
+
+settings_change_dialog_appearance() {
+  # Global dialog appearance controls (via DIALOGRC generation).
+  # These settings are global; per-menu overrides are set in the menu file itself.
+  local choice=""
+
+  while true; do
+    local cur_screen_bg="${DIALOG_SCREEN_BG:-}"
+    local cur_screen_fg="${DIALOG_SCREEN_FG:-}"
+    local cur_dialog_bg="${DIALOG_DIALOG_BG:-}"
+    local cur_dialog_fg="${DIALOG_DIALOG_FG:-}"
+    local cur_shadow="${DIALOG_USE_SHADOW:-OFF}"
+
+    if [[ "${UI_MODE:-text}" == "dialog" ]]; then
+      choice="$(
+        dlg menu --title "Dialog appearance" --intent normal           --height 20 --width 78 --list-height 8 --           "Background and shadow settings (global)"           "1" "Screen colours (BG/FG): ${cur_screen_bg:-<auto>}/${cur_screen_fg:-<auto>}"           "2" "Dialog colours (BG/FG): ${cur_dialog_bg:-<auto>}/${cur_dialog_fg:-<auto>}"           "3" "Shadow: ${cur_shadow}"           "4" "Reset colours to Catppuccin defaults"           "0" "Back"
+      )" || return 0
+    else
+      echo
+      echo "Dialog appearance"
+      echo "1) Screen colours (BG/FG): ${cur_screen_bg:-<auto>}/${cur_screen_fg:-<auto>}"
+      echo "2) Dialog colours (BG/FG): ${cur_dialog_bg:-<auto>}/${cur_dialog_fg:-<auto>}"
+      echo "3) Shadow: ${cur_shadow}"
+      echo "4) Reset colours to Catppuccin defaults"
+      echo "0) Back"
+      read -r -p "Choose: " choice
+    fi
+
+    case "$choice" in
+      1)
+        _settings_set_colour_pair "Screen" "DIALOG_SCREEN_BG" "DIALOG_SCREEN_FG" "$cur_screen_bg" "$cur_screen_fg"
+        ;;
+      2)
+        _settings_set_colour_pair "Dialog" "DIALOG_DIALOG_BG" "DIALOG_DIALOG_FG" "$cur_dialog_bg" "$cur_dialog_fg"
+        ;;
+      3)
+        local sh
+        if [[ "${UI_MODE:-text}" == "dialog" ]]; then
+          sh="$(
+            dlg radiolist --title "Shadow" --intent normal               --height 12 --width 60 --list-height 4 --               "Enable drop shadow behind dialog boxes?"               "ON" "Enabled" $( [[ "${cur_shadow^^}" == "ON" ]] && echo "on" || echo "off" )               "OFF" "Disabled" $( [[ "${cur_shadow^^}" != "ON" ]] && echo "on" || echo "off" )
+          )" || { choice=""; continue; }
+        else
+          echo "Current: ${cur_shadow}"
+          echo "Options: ON, OFF"
+          read -r -p "Enter: " sh
+        fi
+
+        sh="${sh^^}"
+        case "$sh" in
+          ON|OFF) ;;
+          *) _settings_show "Shadow" "Invalid choice. No change made."; continue ;;
+        esac
+
+        homelab_config_set_kv "DIALOG_USE_SHADOW" "$sh"
+        export DIALOG_USE_SHADOW="$sh"
+        _settings_show "Shadow" "Updated shadow to ${sh}"
+        ;;
+      4)
+        homelab_config_set_kv "DIALOG_SCREEN_BG" ""
+        homelab_config_set_kv "DIALOG_SCREEN_FG" ""
+        homelab_config_set_kv "DIALOG_DIALOG_BG" ""
+        homelab_config_set_kv "DIALOG_DIALOG_FG" ""
+        export DIALOG_SCREEN_BG="" DIALOG_SCREEN_FG="" DIALOG_DIALOG_BG="" DIALOG_DIALOG_FG=""
+        _settings_show "Dialog appearance" "Reset colours to Catppuccin defaults.
+
+Takes effect immediately for new screens."
+        ;;
+      0|"")
+        return 0
+        ;;
+      *)
+        _settings_show "Dialog appearance" "Unknown option."
+        ;;
+    esac
+  done
 }
 
 settings_show_config_sources() {
