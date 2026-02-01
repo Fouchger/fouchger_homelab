@@ -52,6 +52,8 @@ echo ""
 export ROOT_DIR
 #------------------------------------------
 
+source lib/paths.sh
+
 main() {
   exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
 }
