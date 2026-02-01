@@ -152,6 +152,7 @@ ensure_deps() {
   local -a missing=()
 
   need_cmd git  || missing+=("git")
+  need_cmd gh || missing+=("gh")
   need_cmd make || missing+=("make")
   need_cmd curl || missing+=("curl")
   need_cmd script || missing+=("util-linux")
@@ -191,12 +192,11 @@ clone_or_update() {
 
 handoff_to_bootstrap() {
   cd "$HOMELAB_DIR"
-  chmod +x *.sh
   [[ -x "./bootstrap.sh" ]] || die "bootstrap.sh not found or not executable in ${HOMELAB_DIR}"
 
   info "🚀 Delegating to bootstrap.sh"
   # Single source of truth: bootstrap.sh handles deps, perms, and handoff.
-  REPO_URL="$HOMELAB_GIT_URL" REPO_REF="$HOMELAB_BRANCH" INSTALL_DIR="$HOMELAB_DIR" SKIP_CLONE=1 ./bootstrap.sh
+  HOMELAB_GIT_URL="$HOMELAB_GIT_URL" HOMELAB_BRANCH="$HOMELAB_BRANCH" HOMELAB_DIR="$HOMELAB_DIR" HOMELAB_NO_RUN=1 bash ./bootstrap.sh
 }
 # ---------------------------------- Main -------------------------------------
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Filename: install.sh
+# Filename: bootstrap.sh
 # Created:  2026-01-20
 # Updated:  2026-01-22
 #
@@ -152,6 +152,7 @@ ensure_deps() {
   local -a missing=()
 
   need_cmd git  || missing+=("git")
+  need_cmd gh || missing+=("gh")
   need_cmd make || missing+=("make")
   need_cmd curl || missing+=("curl")
   need_cmd script || missing+=("util-linux")
@@ -216,6 +217,16 @@ ensure_executables() {
 }
 
 run_homelab() {
-  info "🚀 Launching homelab.sh"
+  echo "🚀 Launching homelab.sh"
   (cd "$HOMELAB_DIR" && ./homelab.sh)
 }
+
+main() {
+  validate_config
+  ensure_deps
+  clone_or_update
+  ensure_executables
+  run_homelab
+}
+
+main "$@"

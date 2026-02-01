@@ -18,7 +18,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export ROOT_DIR
 
 main() {
-  exec "${ROOT_DIR}/commands/menu.sh" "$@"
+  exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
 }
 
 main "$@"
