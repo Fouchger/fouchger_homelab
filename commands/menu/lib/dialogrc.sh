@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
-# Generates and patches DIALOGRC files per Catppuccin flavour + per-call overrides.
-# Uses `dialog --create-rc` for compatibility with the installed dialog version. :contentReference[oaicite:2]{index=2}
+# -----------------------------------------------------------------------------
+# File: commands/menu/lib/dialogrc.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description:
+#   Generates and patches DIALOGRC files per Catppuccin flavour and per-call
+#   overrides.
+#
+# Notes:
+#   - Uses `dialog --create-rc` for compatibility with the installed dialog
+#     version.
+#   - Colour mapping is constrained by curses; this is a best-effort Catppuccin
+#     approximation rather than a perfect match.
+# -----------------------------------------------------------------------------
 
 _dialogrc_cache_dir() {
   echo "${XDG_CACHE_HOME:-/tmp}/homelab-menu/dialog"

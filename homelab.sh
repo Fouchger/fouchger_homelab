@@ -3,58 +3,29 @@
 # File: homelab.sh
 # Created: 2026-01-31
 # Updated: 2026-02-01
-# Description: Primary entrypoint for the homelab menu and commands.
-# Purpose: Routes into the menu command, which owns the runtime lifecycle.
+# Description:
+#   Primary entrypoint for the homelab menu and commands.
+#
 # Usage:
 #   ./homelab.sh
+#
+# Environment variables:
+#   CATPPUCCIN_FLAVOUR  One of LATTE|FRAPPE|MACCHIATO|MOCHA (default: MOCHA)
+#   HOMELAB_THEME       Alias for CATPPUCCIN_FLAVOUR (optional)
+#
 # Notes:
-#   - The command runner in lib/command_runner.sh initialises env, logging, and
-#     summary artefacts. This wrapper simply hands off to the menu.
+#   - ROOT_DIR is resolved via lib/paths.sh.
+#   - This wrapper sets the theme and hands off to the menu.
 # -----------------------------------------------------------------------------
 
-#!/usr/bin/env bash
 set -euo pipefail
 
-#------------------------------------------
-# Find the repository root by locating the directory that contains ".root_marker"
-find_ROOT_DIR() {
-  local dir="${1:-$PWD}"
-
-  while :; do
-    if [[ -e "$dir/.root_marker" ]]; then
-      printf '%s\n' "$dir"
-      return 0
-    fi
-
-    [[ "$dir" == "/" ]] && return 1
-    dir="$(dirname -- "$dir")"
-  done
-}
-
-# Prefer script location as the starting point (works even if invoked from elsewhere)
-script_path="${BASH_SOURCE[0]:-$0}"
-start_dir="$(cd -- "$(dirname -- "$script_path")" 2>/dev/null && pwd -P || pwd -P)"
-
-# If ROOT_DIR is unset (or incorrect), discover it
-if [[ -z "${ROOT_DIR:-}" || ! -e "${ROOT_DIR}/.root_marker" ]]; then
-  if ROOT_DIR="$(find_ROOT_DIR "$start_dir")"; then
-    export ROOT_DIR
-  else
-    echo "ERROR: Could not locate repo root (.root_marker not found starting from: $start_dir)" >&2
-    exit 1
-  fi
-fi
-echo ""
-echo "---------------------------------------"
-echo "REPO ROOT: $ROOT_DIR"
-echo "---------------------------------------"
-echo ""
-export ROOT_DIR
-#------------------------------------------
-
-source lib/paths.sh
+# Resolve repository root.
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)/lib/paths.sh"
 
 main() {
+  # Allow a single knob to set the theme.
+  export CATPPUCCIN_FLAVOUR="${CATPPUCCIN_FLAVOUR:-${HOMELAB_THEME:-MOCHA}}"
   exec "${ROOT_DIR}/commands/menu/menu.sh" "$@"
 }
 

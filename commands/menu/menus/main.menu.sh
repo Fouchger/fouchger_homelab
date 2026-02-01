@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# File: commands/menu/menus/main.menu.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description: Top-level menu definition.
+# Notes:
+#   - Expects MENU_DIR (set by menu.sh) and run_menu() (from menu_runner.sh).
+# -----------------------------------------------------------------------------
 
 MENU_TITLE="Main Menu"
 MENU_PROMPT="Choose an option"
@@ -10,8 +18,8 @@ declare -A MENU_ITEMS=(
 )
 
 declare -A MENU_ACTIONS=(
-    [1]="run_menu \"$ROOT_DIR/menus/system.menu.sh\""
-    [2]="run_menu \"$ROOT_DIR/menus/network.menu.sh\""
+    [1]="run_menu \"$MENU_DIR/system.menu.sh\""
+    [2]="run_menu \"$MENU_DIR/network.menu.sh\""
     [0]="exit 0"
 )
 

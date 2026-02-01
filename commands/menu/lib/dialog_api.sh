@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
-# High-level dialog API: defaults per widget + per-call overrides via temp DIALOGRC.
+# -----------------------------------------------------------------------------
+# File: commands/menu/lib/dialog_api.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description:
+#   High-level dialog API with sensible defaults per widget and per-call
+#   overrides via temporary DIALOGRC files.
+#
+# Notes:
+#   - Designed to be used across Proxmox LXC/VM contexts with best-effort TTY
+#     detection (see env.sh).
+#   - Size defaults can be overridden with environment variables, for example:
+#       DIALOG_DEFAULT_MENU_H=20
+#       DIALOG_DEFAULT_MENU_W=90
+#       DIALOG_DEFAULT_MENU_LISTH=15
+#       DIALOG_DEFAULT_MENU_INTENT=warn
+# -----------------------------------------------------------------------------
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/dialogrc.sh"
 
@@ -101,10 +117,10 @@ dlg__build_rc_for_call() {
 dlg__dialog_common_opts() {
   local widget="$1" title="$2" backtitle="$3"
 
-  # --colors allows \Z sequences; limited to 0..7 curses colors :contentReference[oaicite:3]{index=3}
+  # --colors allows \Z sequences; dialog is still constrained to curses colours.
   local -a opts=(--clear --colors)
 
-  # Make --colors work inside programbox/tailbox/textbox contents as well :contentReference[oaicite:4]{index=4}
+  # Make --colors work inside programbox/tailbox/textbox contents as well.
   case "$widget" in
     programbox|progressbox|textbox|tailbox|tailboxbg) opts+=(--color-mode 2) ;;
   esac
@@ -130,7 +146,7 @@ dlg__out() {
 }
 
 dlg() {
-  # Generic wrapper for ALL dialog widgets listed in dialog(1) :contentReference[oaicite:5]{index=5}
+  # Generic wrapper for all supported dialog widgets.
   #
   # Usage:
   #   choice=$(dlg menu --title "Main" --intent info -- -- "Pick" "1" "One" "2" "Two")
@@ -322,7 +338,7 @@ dlg() {
       ;;
     prgbox)
       # args: [text] command
-      # if only one arg, it's command; if >=2, treat as (text, command) :contentReference[oaicite:6]{index=6}
+      # if only one arg, it's the command; if >=2, treat as (text, command)
       if [[ ${#args[@]} -ge 2 ]]; then
         dlg__run "$rc" "${common[@]}" --prgbox "${args[0]}" "${args[1]}" "$height" "$width"
       else

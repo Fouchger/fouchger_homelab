@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# File: commands/menu/lib/ui.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description:
+#   Terminal UI helpers including Catppuccin palette loading and ANSI colour
+#   helpers with truecolour and 256-colour fallbacks.
+# Notes:
+#   - Colours are only emitted ...
+# -----------------------------------------------------------------------------
 
 # -----------------------------
 # Capability checks

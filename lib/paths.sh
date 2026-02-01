@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Filename: lib/paths.sh
+# File: lib/paths.sh
 # Created: 2026-01-21
-# Updated: 2026-01-24
-# Description: Standard path resolution helpers for fouchger_homelab.
-# Usage:
-#   source "${REPO_ROOT}/lib/paths.sh"   # if REPO_ROOT already known
-#   OR
-#   source "lib/paths.sh"               # will resolve REPO_ROOT on source
+# Updated: 2026-02-01
+# Description:
+#   Repository path resolution helpers for fouchger_homelab-back_to_basic.
 #
-# Developer notes:
-#   - This file is safe to source early. It must not change caller shell options
-#     (no 'set -e/-u/-o pipefail' here).
-#   - REPO_ROOT resolution principle:
-#       1) Use Git top-level when git is available.
-#       2) Otherwise resolve by walking up for a persistent marker file.
-#       3) Create the marker file on first successful resolution and add to
-#          .gitignore to support runs where git is not installed.
-#   - Marker file: .homelab_repo_root (at repo root).
+# Usage:
+#   source "${ROOT_DIR}/lib/paths.sh"      # if ROOT_DIR already known
+#   OR
+#   source "lib/paths.sh"                  # resolves ROOT_DIR on source
+#
+# Notes:
+#   - Safe to source early. Does not change caller shell options.
+#   - Resolution order:
+#       1) Honour existing ROOT_DIR if it looks valid.
+#       2) Use git (if available) for accurate worktree/submodule support.
+#       3) Walk up from PWD until .root_marker is found.
+#   - Exports ROOT_DIR and also REPO_ROOT as a compatibility alias.
 # -----------------------------------------------------------------------------
 
 # Guardrail: prevent double-sourcing.
@@ -27,79 +27,55 @@ fi
 readonly _HOMELAB_PATHS_SOURCED="1"
 
 _homelab_paths_error() { echo "Error: $*" >&2; }
-_homelab_paths_warn()  { echo "Warning: $*" >&2; }
 
-_homelab_ensure_repo_marker() {
-  local root="$1"
-  local marker="$2"
-  local marker_path ignore_path
-
-  marker_path="${root%/}/$marker"
-  ignore_path="${root%/}/.gitignore"
-
-  if [[ ! -f "$marker_path" ]]; then
-    : >"$marker_path" 2>/dev/null || {
-      _homelab_paths_warn "unable to create repo marker at $marker_path"
-      return 0
-    }
-  fi
-
-  # Update .gitignore in a safe, idempotent way.
-  if [[ -f "$ignore_path" ]]; then
-    if ! grep -qxF "$marker" "$ignore_path" 2>/dev/null; then
-      printf '%s\n' "$marker" >>"$ignore_path" 2>/dev/null || _homelab_paths_warn "unable to update $ignore_path"
-    fi
-  else
-    printf '%s\n' "$marker" >"$ignore_path" 2>/dev/null || _homelab_paths_warn "unable to create $ignore_path"
-  fi
+_homelab_root_marker() {
+  echo ".root_marker"
 }
 
-_find_repo_root_by_marker() {
-  local dir="$PWD"
-  local marker=".homelab_repo_root"
+_find_root_by_marker() {
+  local dir="${1:-$PWD}"
+  local marker
+  marker="$(_homelab_root_marker)"
 
   while :; do
-    if [[ -f "${dir%/}/$marker" ]]; then
+    if [[ -e "${dir%/}/$marker" ]]; then
       printf '%s' "$dir"
       return 0
     fi
     [[ "$dir" == "/" ]] && break
-    dir="${dir%/*}"
-    [[ -z "$dir" ]] && dir="/"
+    dir="$(dirname -- "$dir")"
   done
 
   return 1
 }
 
-resolve_repo_root() {
-  local marker=".homelab_repo_root"
-  local repo_root=""
+resolve_root_dir() {
+  local marker
+  marker="$(_homelab_root_marker)"
 
-  # 0) Honour existing REPO_ROOT only if it looks valid.
-  if [[ -n "${REPO_ROOT:-}" && -d "${REPO_ROOT:-}" ]]; then
-    # If marker exists, we trust it. If git exists, we can also trust .git/.gitfile layouts via git.
-    if [[ -f "${REPO_ROOT%/}/$marker" ]]; then
-      printf '%s' "$REPO_ROOT"
-      return 0
-    fi
+  # 0) Honour existing ROOT_DIR only if it looks valid.
+  if [[ -n "${ROOT_DIR:-}" && -d "${ROOT_DIR:-}" && -e "${ROOT_DIR%/}/$marker" ]]; then
+    printf '%s' "$ROOT_DIR"
+    return 0
   fi
 
-  # 1) Preferred: ask Git (handles worktrees/submodules properly).
+  # 1) Preferred: ask Git.
   if command -v git >/dev/null 2>&1; then
-    if repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-      REPO_ROOT="$repo_root"
-      export REPO_ROOT
-      _homelab_ensure_repo_marker "$REPO_ROOT" "$marker"
-      printf '%s' "$REPO_ROOT"
+    local git_root
+    if git_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+      ROOT_DIR="$git_root"
+      export ROOT_DIR
+      printf '%s' "$ROOT_DIR"
       return 0
     fi
   fi
 
   # 2) Fallback: marker walk.
-  if repo_root="$(_find_repo_root_by_marker)"; then
-    REPO_ROOT="$repo_root"
-    export REPO_ROOT
-    printf '%s' "$REPO_ROOT"
+  local walked
+  if walked="$(_find_root_by_marker "${PWD}")"; then
+    ROOT_DIR="$walked"
+    export ROOT_DIR
+    printf '%s' "$ROOT_DIR"
     return 0
   fi
 
@@ -107,8 +83,10 @@ resolve_repo_root() {
   return 1
 }
 
-# Resolve immediately on source, as your current file expects.
-# Caller can override by exporting REPO_ROOT beforehand.
-REPO_ROOT="$(resolve_repo_root)" || return 1
-export REPO_ROOT
+# Resolve immediately on source.
+ROOT_DIR="$(resolve_root_dir)" || return 1
+export ROOT_DIR
 
+# Compatibility alias.
+REPO_ROOT="$ROOT_DIR"
+export REPO_ROOT

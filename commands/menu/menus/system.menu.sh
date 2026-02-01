@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# File: commands/menu/menus/system.menu.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description: System administration menu definition.
+# Notes:
+#   - Expects MENU_DIR (set by menu.sh) and run_menu() (from menu_runner.sh).
+# -----------------------------------------------------------------------------
 
 MENU_TITLE="System Menu"
 MENU_PROMPT="System actions"
@@ -12,7 +20,7 @@ declare -A MENU_ITEMS=(
 declare -A MENU_ACTIONS=(
     [1]="uptime"
     [2]="df -h"
-    [0]="run_menu \"$ROOT_DIR/menus/main.menu.sh\""
+    [0]="run_menu \"$MENU_DIR/main.menu.sh\""
 )
 
 MENU_DEFAULT_ACTION="true"

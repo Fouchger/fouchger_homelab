@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# File: commands/menu/lib/menu_runner.sh
+# Created: 2026-02-01
+# Updated: 2026-02-01
+# Description:
+#   Generic menu runner supporting dialog, plain text, and non-interactive
+#   operation.
+# Notes:
+#   - Menus are defined in separate files with MENU_TITLE, MENU_PROMPT,
+#     MENU_ITEMS, and MENU_ACTIONS.
+# -----------------------------------------------------------------------------
 
 run_menu() {
     local menu_file="$1"
@@ -13,8 +24,18 @@ run_menu() {
 
 run_dialog_menu() {
     local options=()
-    for i in "${!MENU_ITEMS[@]}"; do
-        options+=("$i" "${MENU_ITEMS[$i]}")
+    local -a keys=()
+    local k
+
+    # Ensure stable ordering (associative arrays do not preserve insert order).
+    for k in "${!MENU_ITEMS[@]}"; do
+      keys+=("$k")
+    done
+    IFS=$'\n' keys=($(sort -n <<<"${keys[*]}"))
+    unset IFS
+
+    for k in "${keys[@]}"; do
+      options+=("$k" "${MENU_ITEMS[$k]}")
     done
 
     local choice
@@ -30,21 +51,33 @@ run_dialog_menu() {
         "${options[@]}"
     )" || return
 
-    eval "${MENU_ACTIONS[$choice]}"
+    if [[ -n "${MENU_ACTIONS[$choice]:-}" ]]; then
+      eval "${MENU_ACTIONS[$choice]}"
+    fi
 }
 
 run_text_menu() {
-    echo -e "${C_TITLE}${MENU_TITLE}${RESET}"
-    echo
+  echo -e "${C_TITLE}${MENU_TITLE}${RESET}"
+  echo
 
-    for i in "${!MENU_ITEMS[@]}"; do
-        echo -e "  ${C_KEY}${i})${RESET} ${C_TEXT}${MENU_ITEMS[$i]}${RESET}"
-    done
+  local -a keys=()
+  local k
+  for k in "${!MENU_ITEMS[@]}"; do
+    keys+=("$k")
+  done
+  IFS=$'\n' keys=($(sort -n <<<"${keys[*]}"))
+  unset IFS
 
-    echo
-    echo -ne "${C_PROMPT}Select option:${RESET} "
-    read -r choice
-    eval "${MENU_ACTIONS[$choice]:-:}"
+  for k in "${keys[@]}"; do
+    echo -e "  ${C_KEY}${k})${RESET} ${C_TEXT}${MENU_ITEMS[$k]}${RESET}"
+  done
+
+  echo
+  echo -ne "${C_PROMPT}Select option:${RESET} "
+  read -r choice
+  if [[ -n "${MENU_ACTIONS[$choice]:-}" ]]; then
+    eval "${MENU_ACTIONS[$choice]}"
+  fi
 }
 
 
