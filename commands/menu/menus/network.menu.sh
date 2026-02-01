@@ -45,7 +45,7 @@ declare -A MENU_ITEMS=(
 declare -A MENU_ACTIONS=(
     [1]="call|network_show_ips"
     [2]="call|network_show_routes"
-    [0]="menu|$MENU_DIR/main.menu.sh"
+    [0]="back|0"
 )
 
 MENU_DEFAULT_ACTION="noop"

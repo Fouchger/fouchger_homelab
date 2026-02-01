@@ -55,6 +55,23 @@ _dialogrc_set() {
   ' "$file" >"$tmp" && mv "$tmp" "$file"
 }
 
+_dialogrc_color_name() {
+  # Accept common curses colour names or 0-7.
+  local c="${1:-}"
+  c="${c,,}"
+  case "$c" in
+    0|black) echo "BLACK" ;;
+    1|red) echo "RED" ;;
+    2|green) echo "GREEN" ;;
+    3|yellow) echo "YELLOW" ;;
+    4|blue) echo "BLUE" ;;
+    5|magenta) echo "MAGENTA" ;;
+    6|cyan) echo "CYAN" ;;
+    7|white) echo "WHITE" ;;
+    *) echo "${c^^}" ;;
+  esac
+}
+
 # Map Catppuccin flavour -> a coherent curses scheme (approximation)
 _dialogrc_scheme_for_flavour() {
   local flavour="$(_dialogrc_safe_flavour "$1")"
@@ -102,6 +119,13 @@ _dialogrc_scheme_for_flavour() {
       SELECT_FG="WHITE"
       ;;
   esac
+
+  # Global background overrides (optional).
+  # These are applied after the flavour mapping, so they win.
+  [[ -n "${DIALOG_SCREEN_BG:-}" ]] && SCREEN_BG="$(_dialogrc_color_name "$DIALOG_SCREEN_BG")"
+  [[ -n "${DIALOG_SCREEN_FG:-}" ]] && SCREEN_FG="$(_dialogrc_color_name "$DIALOG_SCREEN_FG")"
+  [[ -n "${DIALOG_DIALOG_BG:-}" ]] && DIALOG_BG="$(_dialogrc_color_name "$DIALOG_DIALOG_BG")"
+  [[ -n "${DIALOG_DIALOG_FG:-}" ]] && DIALOG_FG="$(_dialogrc_color_name "$DIALOG_DIALOG_FG")"
 }
 
 # Decide readable foreground for a given background color
@@ -120,9 +144,9 @@ _dialogrc_apply_catppuccin() {
 
   _dialogrc_scheme_for_flavour "$flavour"
 
-  # Enable colors; shadow is subjective—OFF tends to look cleaner for Catppuccin
+  # Enable colours; shadow is subjective. Default OFF, configurable.
   _dialogrc_set "$file" "use_colors" "ON"
-  _dialogrc_set "$file" "use_shadow" "OFF"
+  _dialogrc_set "$file" "use_shadow" "${DIALOG_USE_SHADOW:-OFF}"
 
   # Core surfaces
   _dialogrc_set "$file" "screen_color" "($SCREEN_FG,$SCREEN_BG,OFF)"

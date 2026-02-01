@@ -22,3 +22,16 @@ HOMELAB_LOG_FILE=""
 HOMELAB_REPO_ROOT=""
 
 # Dialog defaults can be set here using DIALOG_DEFAULT_* variables.
+# Examples:
+#   DIALOG_DEFAULT_MENU_H=18
+#   DIALOG_DEFAULT_MENU_W=86
+#   DIALOG_DEFAULT_MENU_LISTH=12
+
+# Dialog colours (optional overrides). If unset, Catppuccin flavour defaults apply.
+# Note: dialog is limited to curses colours; values are best-effort.
+# Supported values include: BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE.
+DIALOG_SCREEN_BG=""
+DIALOG_SCREEN_FG=""
+DIALOG_DIALOG_BG=""
+DIALOG_DIALOG_FG=""
+DIALOG_USE_SHADOW="OFF"

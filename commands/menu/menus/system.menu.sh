@@ -20,7 +20,7 @@ declare -A MENU_ITEMS=(
 declare -A MENU_ACTIONS=(
     [1]="cmd|uptime"
     [2]="cmd|df|-h"
-    [0]="menu|$MENU_DIR/main.menu.sh"
+    [0]="back|0"
 )
 
 MENU_DEFAULT_ACTION="noop"

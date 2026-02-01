@@ -14,6 +14,10 @@
 run_menu() {
     local menu_file="$1"
 
+    # Optional per-menu theme override (useful for special-purpose screens).
+    # If not set, the global CATPPUCCIN_FLAVOUR applies.
+    local __saved_catppuccin_flavour="${CATPPUCCIN_FLAVOUR:-}"
+
     # Reset menu variables to avoid bleed between menus.
     unset MENU_TITLE MENU_PROMPT MENU_DEFAULT_ACTION MENU_DIALOG_INTENT \
       MENU_DIALOG_HEIGHT MENU_DIALOG_WIDTH MENU_DIALOG_LIST_HEIGHT
@@ -28,11 +32,36 @@ run_menu() {
     : "${MENU_ITEMS:?menu missing MENU_ITEMS ($menu_file)}"
     : "${MENU_ACTIONS:?menu missing MENU_ACTIONS ($menu_file)}"
 
-    case "$UI_MODE" in
-        dialog) run_dialog_menu ;;
-        text)   run_text_menu ;;
-        *)      run_noninteractive ;;
-    esac
+    if [[ -n "${MENU_CATPPUCCIN_FLAVOUR:-}" ]]; then
+      CATPPUCCIN_FLAVOUR="$MENU_CATPPUCCIN_FLAVOUR"
+    fi
+
+    # Run the current menu in a loop so "call|..." actions return to the menu
+    # rather than dropping back to the shell. A menu can request returning to
+    # its caller by dispatching "back" (or by the user pressing ESC/Cancel).
+    while true; do
+      local st=0
+      case "$UI_MODE" in
+          dialog) run_dialog_menu; st=$? ;;
+          text)   run_text_menu;   st=$? ;;
+          *)      run_noninteractive; st=$? ;;
+      esac
+
+      # 200 is a special "back" signal.
+      if (( st == 200 )); then
+        CATPPUCCIN_FLAVOUR="$__saved_catppuccin_flavour"
+        return 0
+      fi
+    done
+}
+
+menu__contrast_fg() {
+  # Best-effort readable foreground for a given (curses) background.
+  local bg="${1^^}"
+  case "$bg" in
+    YELLOW|WHITE|CYAN) echo "BLACK" ;;
+    *) echo "WHITE" ;;
+  esac
 }
 
 menu__dispatch_action() {
@@ -69,6 +98,10 @@ menu__dispatch_action() {
       ;;
     exit)
       exit "${parts[1]:-0}"
+      ;;
+    back|return)
+      # Signal to the menu loop that we should return to the caller.
+      return 200
       ;;
     cmd)
       # Execute an external command safely (no eval). Output behaviour follows
@@ -122,8 +155,32 @@ run_dialog_menu() {
     [[ -n "${MENU_DIALOG_WIDTH:-}"  ]] && dlg_opts+=(--width "$MENU_DIALOG_WIDTH")
     [[ -n "${MENU_DIALOG_LIST_HEIGHT:-}" ]] && dlg_opts+=(--list-height "$MENU_DIALOG_LIST_HEIGHT")
 
+    # Optional per-menu background overrides.
+    # These are useful if one menu (e.g. Settings) should look different.
+    if [[ -n "${MENU_DIALOG_SCREEN_BG:-}" || -n "${MENU_DIALOG_SCREEN_FG:-}" ]]; then
+      local sb sf
+      sb="$(dlg_color_name "${MENU_DIALOG_SCREEN_BG:-BLACK}")"
+      sf="$(dlg_color_name "${MENU_DIALOG_SCREEN_FG:-$(menu__contrast_fg "$sb")}")"
+      dlg_opts+=(--rc-set "screen_color=($sf,$sb,OFF)")
+    fi
+
+    if [[ -n "${MENU_DIALOG_BG:-}" || -n "${MENU_DIALOG_FG:-}" ]]; then
+      local db df
+      db="$(dlg_color_name "${MENU_DIALOG_BG:-BLACK}")"
+      df="$(dlg_color_name "${MENU_DIALOG_FG:-WHITE}")"
+      dlg_opts+=(--rc-set "dialog_color=($df,$db,OFF)")
+      # Keep related surfaces consistent
+      dlg_opts+=(--rc-set "menubox_color=dialog_color" --rc-set "item_color=dialog_color" --rc-set "check_color=dialog_color")
+    fi
+
     local choice
-    choice="$(dlg menu "${dlg_opts[@]}" -- "$MENU_PROMPT" "${options[@]}")" || return
+    choice="$(dlg menu "${dlg_opts[@]}" -- "$MENU_PROMPT" "${options[@]}")"
+    local st=$?
+
+    # ESC/Cancel -> back to caller
+    if (( st != 0 )); then
+      return 200
+    fi
 
     menu__dispatch_action "${MENU_ACTIONS[$choice]:-}"
 }
@@ -146,7 +203,8 @@ run_text_menu() {
 
   echo
   echo -ne "${C_PROMPT}Select option:${RESET} "
-  read -r choice
+  read -r choice || return 200
+  [[ -z "${choice:-}" ]] && return 200
   menu__dispatch_action "${MENU_ACTIONS[$choice]:-}"
 }
 

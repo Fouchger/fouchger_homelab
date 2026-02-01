@@ -18,6 +18,14 @@ MENU_DIALOG_HEIGHT="22"
 MENU_DIALOG_WIDTH="86"
 MENU_DIALOG_LIST_HEIGHT="12"
 
+# Per-object colours: you can override how this menu looks without affecting
+# other menus. These are optional.
+# MENU_DIALOG_INTENT can be: normal|info|success|warn|error (or a curses colour).
+MENU_DIALOG_INTENT="${MENU_DIALOG_INTENT:-normal}"
+# Background overrides (curses colours). Leave blank to inherit Catppuccin defaults.
+# MENU_DIALOG_SCREEN_BG="BLACK"; MENU_DIALOG_SCREEN_FG="WHITE"
+# MENU_DIALOG_BG="BLACK"; MENU_DIALOG_FG="WHITE"
+
 declare -A MENU_ITEMS=(
     [1]="View current settings"
     [2]="Theme (Catppuccin flavour)"
@@ -37,7 +45,7 @@ declare -A MENU_ACTIONS=(
     [5]="call|settings_change_dialog_widget_defaults"
     [6]="call|settings_change_repo_root"
     [7]="call|settings_show_config_sources"
-    [0]="menu|$MENU_DIR/main.menu.sh"
+    [0]="back|0"
 )
 
 MENU_DEFAULT_ACTION="noop"
