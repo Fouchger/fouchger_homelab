@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # File: lib/logging.sh
 # Created: 2026-02-01
-# Updated: 2026-02-01
+# Updated: 2026-02-03
 # Description:
 #   System-wide logging with configurable levels and a helper to run commands.
 #
@@ -43,6 +43,12 @@ homelab_log__now() {
 }
 
 homelab_log__default_log_file() {
+  # Prefer repo-local state layout when available (lib/paths.sh).
+  if [[ -n "${HOMELAB_LOG_DIR:-}" ]]; then
+    echo "${HOMELAB_LOG_DIR%/}/homelab.log"
+    return 0
+  fi
+
   local base
   base="${XDG_STATE_HOME:-$HOME/.local/state}"
   if [[ -z "${base:-}" || ! -d "${base%/}" ]]; then

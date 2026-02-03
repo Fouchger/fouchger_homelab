@@ -1,0 +1,8 @@
+# -----------------------------------------------------------------------------
+# fouchger_homelab-back_to_basic
+#
+# This repo keeps runtime state (settings, secrets, logs, output artifacts)
+# under the repo-local state folder. This must never be committed.
+# -----------------------------------------------------------------------------
+
+/state/

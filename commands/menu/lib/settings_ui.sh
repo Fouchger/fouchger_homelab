@@ -8,7 +8,8 @@
 #
 # Notes:
 #   - Supports dialog and text UI modes.
-#   - Writes to the effective config file (system when root; user when not).
+#   - Writes to the effective config file (by default: repo-local state
+#     config at $ROOT_DIR/state/config/homelab.conf).
 # -----------------------------------------------------------------------------
 
 # Guardrail
@@ -38,6 +39,11 @@ _settings_show() {
 settings_current_summary() {
   cat <<EOF
 Write target: $(_settings_write_path)
+
+State dir:                 ${HOMELAB_STATE_DIR:-<auto>}
+Secrets dir:               ${HOMELAB_SECRETS_DIR:-<auto>}
+Logs dir:                  ${HOMELAB_LOG_DIR:-<auto>}
+Output dir:                ${HOMELAB_OUTPUT_DIR:-<auto>}
 
 Theme (CATPPUCCIN_FLAVOUR): ${CATPPUCCIN_FLAVOUR:-MOCHA}
 UI mode (FORCE_UI_MODE):   ${FORCE_UI_MODE:-<auto>}

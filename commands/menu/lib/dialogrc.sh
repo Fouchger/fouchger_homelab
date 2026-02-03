@@ -15,7 +15,12 @@
 # -----------------------------------------------------------------------------
 
 _dialogrc_cache_dir() {
-  echo "${XDG_CACHE_HOME:-/tmp}/homelab-menu/dialog"
+  # Prefer repo-local state cache when available.
+  if [[ -n "${HOMELAB_CACHE_DIR:-}" ]]; then
+    echo "${HOMELAB_CACHE_DIR%/}/dialog"
+  else
+    echo "${XDG_CACHE_HOME:-/tmp}/homelab-menu/dialog"
+  fi
 }
 
 _dialogrc_safe_flavour() {

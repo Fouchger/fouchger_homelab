@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # File: lib/config.sh
 # Created: 2026-02-01
-# Updated: 2026-02-01
+# Updated: 2026-02-03
 # Description:
 #   System + user configuration loader and writer.
 #
@@ -10,14 +10,17 @@
 #
 # Precedence (lowest to highest):
 #   1) Repo defaults:   $ROOT_DIR/config/homelab.conf.defaults
-#   2) System config:   /etc/fouchger_homelab_back_to_basic.conf
-#   3) User config:     $XDG_CONFIG_HOME/fouchger/homelab-back_to_basic.conf
-#   4) Explicit config: $HOMELAB_CONFIG_FILE (if set)
-#   5) Environment vars always win (because they are already set)
+#   2) Repo state:      $HOMELAB_STATE_CONFIG_FILE (default: $ROOT_DIR/state/config/homelab.conf)
+#   3) System config:   /etc/fouchger_homelab_back_to_basic.conf (legacy/back-compat)
+#   4) User config:     $XDG_CONFIG_HOME/fouchger/homelab-back_to_basic.conf (legacy/back-compat)
+#   5) Explicit config: $HOMELAB_CONFIG_FILE (if set)
+#   6) Environment vars always win (because they are already set)
 #
 # Notes:
 #   - Writer updates a single KEY=VALUE line, preserving other content.
-#   - When not running as root, writes default to the user config path.
+#   - By default, user changes are written into repo-local state
+#     ($ROOT_DIR/state/config/homelab.conf), so the tool can run consistently
+#     on LXC/VM hosts where user home directories vary.
 # -----------------------------------------------------------------------------
 
 # Guardrail: prevent double-sourcing.
@@ -40,6 +43,16 @@ homelab_config__defaults_path() {
   echo "${ROOT_DIR%/}/config/homelab.conf.defaults"
 }
 
+homelab_config__state_path() {
+  # Preferred, repo-local state config. lib/paths.sh initialises
+  # HOMELAB_STATE_CONFIG_FILE, but we also provide a safe fallback.
+  if [[ -n "${HOMELAB_STATE_CONFIG_FILE:-}" ]]; then
+    echo "$HOMELAB_STATE_CONFIG_FILE"
+  else
+    echo "${ROOT_DIR%/}/state/config/homelab.conf"
+  fi
+}
+
 homelab_config_effective_write_path() {
   # If the user explicitly set a config path, respect it.
   if [[ -n "${HOMELAB_CONFIG_FILE:-}" ]]; then
@@ -47,11 +60,8 @@ homelab_config_effective_write_path() {
     return 0
   fi
 
-  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-    echo "$(homelab_config__sys_path)"
-  else
-    echo "$(homelab_config__user_path)"
-  fi
+  # Default: repo-local state config.
+  echo "$(homelab_config__state_path)"
 }
 
 homelab_config_ensure_file() {
@@ -115,13 +125,15 @@ homelab_config__safe_source() {
 
 homelab_config_load() {
   # Load defaults first.
-  local defaults sys user explicit
+  local defaults state sys user explicit
   defaults="$(homelab_config__defaults_path)"
+  state="$(homelab_config__state_path)"
   sys="$(homelab_config__sys_path)"
   user="$(homelab_config__user_path)"
   explicit="${HOMELAB_CONFIG_FILE:-}"
 
   homelab_config__safe_source "$defaults"
+  homelab_config__safe_source "$state"
   homelab_config__safe_source "$sys"
   homelab_config__safe_source "$user"
   if [[ -n "$explicit" ]]; then
@@ -169,13 +181,15 @@ homelab_config_set_kv() {
 
 homelab_config_effective_source_summary() {
   # Human-readable summary of where config came from.
-  local defaults sys user explicit
+  local defaults state sys user explicit
   defaults="$(homelab_config__defaults_path)"
+  state="$(homelab_config__state_path)"
   sys="$(homelab_config__sys_path)"
   user="$(homelab_config__user_path)"
   explicit="${HOMELAB_CONFIG_FILE:-}"
 
   echo "Defaults:  ${defaults}"
+  echo "State:     ${state} $( [[ -f "$state" ]] && echo '(loaded)' || echo '(missing)' )"
   echo "System:    ${sys} $( [[ -f "$sys" ]] && echo '(loaded)' || echo '(missing)' )"
   echo "User:      ${user} $( [[ -f "$user" ]] && echo '(loaded)' || echo '(missing)' )"
   if [[ -n "$explicit" ]]; then

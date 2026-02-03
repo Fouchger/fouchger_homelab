@@ -21,6 +21,11 @@ HOMELAB_LOG_FILE=""
 # Repo override (primarily for wrappers installed outside the repo)
 HOMELAB_REPO_ROOT=""
 
+# State layout (optional overrides).
+# By default, the tool keeps all runtime state in: $ROOT_DIR/state
+# You can override the root folder for state (useful if the repo is read-only).
+HOMELAB_STATE_DIR=""
+
 # Dialog defaults can be set here using DIALOG_DEFAULT_* variables.
 # Examples:
 #   DIALOG_DEFAULT_MENU_H=18
