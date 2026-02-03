@@ -246,7 +246,10 @@ _dialogrc_apply_intent() {
 
 dialogrc_base_path() {
   local flavour="$(_dialogrc_safe_flavour "${CATPPUCCIN_FLAVOUR:-MOCHA}")"
-  echo "$(_dialogrc_cache_dir)/dialogrc-${flavour}.rc"
+  local sig="${DIALOG_USE_SHADOW:-OFF}|${DIALOG_SCREEN_BG:-}|${DIALOG_SCREEN_FG:-}|${DIALOG_DIALOG_BG:-}|${DIALOG_DIALOG_FG:-}"
+  local hash
+  hash="$(printf '%s' "$sig" | sha1sum 2>/dev/null | awk '{print $1}' || echo "nosha")"
+  echo "$(_dialogrc_cache_dir)/dialogrc-${flavour}-${hash}.rc"
 }
 
 dialogrc_ensure_base() {
@@ -313,8 +316,10 @@ dialogrc_make_temp_override() {
   # Usage:
   #   dialogrc_make_temp_override <base_rc> <key=value> [key=value ...]
   local base_rc="$1"; shift
-  local tmp="$(_dialogrc_mktemp "$(_dialogrc_cache_dir)")"
+  local dir="$(_dialogrc_cache_dir)"
+  mkdir -p "$dir"
 
+  local tmp="$(_dialogrc_mktemp "$dir")"
   cp "$base_rc" "$tmp"
 
   local kv key val
@@ -326,3 +331,4 @@ dialogrc_make_temp_override() {
 
   echo "$tmp"
 }
+
