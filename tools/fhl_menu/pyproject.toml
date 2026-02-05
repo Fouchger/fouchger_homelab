@@ -1,0 +1,21 @@
+# =============================================================================
+# File: tools/fhl_menu/pyproject.toml
+# Project: Fouchger HomeLab Menu (fhl_menu)
+# Purpose: Build metadata. App runs via: python -m fhl_menu
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fhl-menu"
+version = "0.1.0"
+description = "Fouchger HomeLab production-ready Textual menu with logging and settings persistence."
+requires-python = ">=3.9"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
