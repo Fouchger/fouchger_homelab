@@ -2,6 +2,9 @@
 # File: tools/fhl_menu/src/fhl_menu/ui_textual.py
 # Project: Fouchger HomeLab Menu (fhl_menu)
 # Purpose: Textual TUI (production-ready minimal menu).
+# Notes:
+# - Updated for Textual 7.x: TextLog removed; using RichLog instead.
+# - _write_output supports multiple RichLog APIs for forward/back compatibility.
 # Options included (only these for now):
 # - Settings (Logging level)
 # - View logs
@@ -16,7 +19,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Select, Static, TextLog
+from textual.widgets import Button, Footer, Header, Select, Static, RichLog
 
 from fhl_menu.config import AppConfig, save_config
 from fhl_menu.constants import APP_DISPLAY_NAME, SUPPORTED_LOG_LEVELS
@@ -70,7 +73,7 @@ class FhlMenuApp(App[int]):
 
     #status { padding-top: 1; height: auto; }
 
-    TextLog { height: 18; }
+    RichLog { height: 18; }
 
     .btnrow Button { margin-right: 1; }
     """
@@ -86,7 +89,7 @@ class FhlMenuApp(App[int]):
         super().__init__()
         self._ctx = ctx
         self._config = config
-        self._output: TextLog | None = None
+        self._output: RichLog | None = None
         self._level_select: Select[str] | None = None
 
     def compose(self) -> ComposeResult:
@@ -112,7 +115,7 @@ class FhlMenuApp(App[int]):
 
             with Vertical(id="right"):
                 yield Static("Output")
-                self._output = TextLog(highlight=True, markup=False)
+                self._output = RichLog()
                 yield self._output
 
         yield Footer()
@@ -138,8 +141,25 @@ class FhlMenuApp(App[int]):
         self.query_one("#status", Static).update(self._build_status_text())
 
     def _write_output(self, text: str) -> None:
-        if self._output is not None:
-            self._output.write(text)
+        """Write a line of output to the log pane (Textual 7.x compatible)."""
+        if self._output is None:
+            return
+
+        # Textual RichLog API has evolved; support common method names.
+        try:
+            write = getattr(self._output, "write", None)
+            if callable(write):
+                write(text)
+                return
+            write_line = getattr(self._output, "write_line", None)
+            if callable(write_line):
+                write_line(text)
+                return
+        except Exception:  # pragma: no cover
+            pass
+
+        # As a last resort, fall back to updating a mounted Static.
+        self._output.mount(Static(text))
 
     def action_settings(self) -> None:
         self._write_output("Select a log level then press Save log level.")

@@ -6,7 +6,7 @@
 # - Keep this lean for LXC/VM environments.
 # =============================================================================
 
-textual>=0.86.0
+textual>=7.5.0,<8.0.0
 rich>=13.7.0
 platformdirs>=4.2.0
 tomli>=2.0.1; python_version < "3.11"
