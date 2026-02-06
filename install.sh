@@ -203,16 +203,35 @@ ensure_executables() {
   fi
 }
 
-launch_app() {
+install_local_app() {
+  # =============================================================================
+  # Purpose:
+  #   Ensure the local application package (src/ layout) is installed into the
+  #   virtual environment so `python -m fhl_menu` and the console script work.
+  #
+  # Notes:
+  #   - Uses editable install to support `git pull` updates without re-install.
+  # =============================================================================
   local app_dir="$1"
+
+  echo "Installing local app package into venv (editable)..."
+  python -m pip install -e "${app_dir}" ${FHL_PIP_EXTRA_ARGS}
+
+  # Sanity check so failures are obvious and actionable
+  python -c "import ${FHL_ENTRY_MODULE}" >/dev/null 2>&1     || die "Local package install failed: cannot import ${FHL_ENTRY_MODULE}"
+}
+
+
+launch_app() {
+  local repo_dir="$1"
   echo "Launching ${FHL_APP_DISPLAY_NAME}..."
-  cd "${app_dir}"
+  cd "${repo_dir}"
 
   # Pass identity down to the app without hardcoding in code.
   export FHL_APP_DISPLAY_NAME
   export FHL_APP_SLUG
 
-  exec python -m "${FHL_ENTRY_MODULE}"
+  exec ./fhl-menu
 }
 
 # -----------------------------
@@ -244,4 +263,8 @@ APP_DIR="${TARGET_DIR}/${FHL_APP_RELATIVE_DIR}"
 
 create_or_use_venv "${APP_DIR}"
 install_python_deps "${TARGET_DIR}" "${APP_DIR}"
-launch_app "${APP_DIR}"
+install_local_app "${APP_DIR}"
+
+echo "Run later with: ${TARGET_DIR}/fhl-menu"
+
+launch_app "${TARGET_DIR}"

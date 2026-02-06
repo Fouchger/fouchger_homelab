@@ -6,5 +6,11 @@
 
 from fhl_menu.bootstrap import run
 
+
+def main() -> int:
+    """Console-script entry point."""
+    return int(run())
+
+
 if __name__ == "__main__":
     raise SystemExit(run())

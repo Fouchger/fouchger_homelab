@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# =============================================================================
+# File: fhl-menu
+# Project: Fouchger HomeLab
+# Purpose:
+#   Run the FHL Textual menu using the repo-local virtual environment.
+#
+# Usage:
+#   ./fhl-menu
+#   ./fhl-menu --help
+#
+# Notes:
+#   - This script is designed to be run from anywhere.
+#   - install.sh will create the venv and install dependencies and the local app.
+# =============================================================================
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${REPO_DIR}/tools/fhl_menu"
+VENV_DIR="${APP_DIR}/.venv"
+
+if [[ -x "${VENV_DIR}/bin/fhl-menu" ]]; then
+  exec "${VENV_DIR}/bin/fhl-menu" "$@"
+fi
+
+if [[ -x "${VENV_DIR}/bin/python" ]]; then
+  exec "${VENV_DIR}/bin/python" -m fhl_menu "$@"
+fi
+
+echo "FHL Menu is not installed yet for this repo clone." >&2
+echo "Run: ${REPO_DIR}/install.sh" >&2
+exit 1
