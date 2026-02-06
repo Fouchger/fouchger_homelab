@@ -11,11 +11,11 @@ Features
 
 Run
 - Installer (self-healing):
-  - `bash tools/fhl_menu/install.sh`
+  - `bash install.sh`
 - Manual run:
   - `cd tools/fhl_menu`
   - `python -m venv .venv && source .venv/bin/activate`
-  - `pip install -r requirements.txt`
+  - `pip install -r ../../requirements.txt`
   - `python -m fhl_menu`
 
 Overrides (optional)
@@ -25,5 +25,5 @@ Overrides (optional)
 
 install
 ```bash
-bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/20250205/tools/fhl_menu/install.sh | bash'
+bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/20250205/install.sh | bash'
 ```

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# File: tools/fhl_menu/install.sh
+# File: install.sh
 # Project: Fouchger HomeLab Menu (fhl_menu)
 # Purpose:
 #   Self-healing installer that:
@@ -33,6 +33,15 @@ set -euo pipefail
 # The menu app lives inside the repo under tools/fhl_menu
 : "${FHL_APP_RELATIVE_DIR:="tools/fhl_menu"}"
 : "${FHL_ENTRY_MODULE:="fhl_menu"}"
+
+# Requirements file location.
+#
+# Folder structure options supported:
+# - Preferred: requirements.txt at repo root
+# - Legacy:    requirements.txt inside tools/fhl_menu
+#
+# You can override this if you want a non-standard layout.
+: "${FHL_REQUIREMENTS_RELATIVE_PATH:="requirements.txt"}"
 
 # Identity (display vs slug)
 : "${FHL_APP_DISPLAY_NAME:="Fouchger HomeLab"}"
@@ -127,10 +136,19 @@ create_or_use_venv() {
 }
 
 install_python_deps() {
-  local app_dir="$1"
-  local req_file="${app_dir}/requirements.txt"
+  local repo_dir="$1"
+  local app_dir="$2"
+  local req_file
 
-  [[ -f "${req_file}" ]] || die "requirements.txt not found at ${req_file}"
+  # 1) Respect explicit override (relative to repo root)
+  req_file="${repo_dir}/${FHL_REQUIREMENTS_RELATIVE_PATH}"
+
+  # 2) Backwards-compatible fallback (requirements in app dir)
+  if [[ ! -f "${req_file}" && -f "${app_dir}/requirements.txt" ]]; then
+    req_file="${app_dir}/requirements.txt"
+  fi
+
+  [[ -f "${req_file}" ]] || die "requirements.txt not found. Looked for: ${repo_dir}/${FHL_REQUIREMENTS_RELATIVE_PATH} and ${app_dir}/requirements.txt"
 
   echo "Upgrading pip..."
   python -m pip install --upgrade pip wheel ${FHL_PIP_EXTRA_ARGS}
@@ -178,5 +196,5 @@ APP_DIR="${TARGET_DIR}/${FHL_APP_RELATIVE_DIR}"
 [[ -d "${APP_DIR}" ]] || die "App directory not found in repo at: ${APP_DIR}. Ensure you committed tools/fhl_menu."
 
 create_or_use_venv "${APP_DIR}"
-install_python_deps "${APP_DIR}"
+install_python_deps "${TARGET_DIR}" "${APP_DIR}"
 launch_app "${APP_DIR}"

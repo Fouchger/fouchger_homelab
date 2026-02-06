@@ -1,5 +1,5 @@
 # =============================================================================
-# File: tools/fhl_menu/requirements.txt
+# File: requirements.txt
 # Project: Fouchger HomeLab Menu (fhl_menu)
 # Purpose: Runtime dependencies only (minimum required for menu + logging).
 # Developer notes:
