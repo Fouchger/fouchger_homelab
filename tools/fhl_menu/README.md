@@ -22,3 +22,9 @@ Overrides (optional)
 - `FHL_REPO_BRANCH=dev`
 - `FHL_APP_DISPLAY_NAME="Fouchger HomeLab"`
 - `FHL_APP_SLUG="fouchger-homelab"`
+
+install
+```bash
+bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/dev/tools/fhl_menu/install.sh | bash'
+bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/dev/tools/fhl_menu/install.sh | bash'
+```
