@@ -33,7 +33,14 @@ def _prompt_choice(prompt: str, choices: list[str]) -> str:
         print(prompt)
         for i, c in enumerate(choices, start=1):
             print(f"  {i}) {c}")
-        raw = input("Select an option: ").strip()
+        
+        try:
+            raw = input("Select an option: ").strip()
+        except EOFError:
+            print("\nNo interactive input available (stdin closed). Exiting.")
+            return "4"  # maps to Exit
+
+
         if raw.isdigit():
             idx = int(raw)
             if 1 <= idx <= len(choices):
