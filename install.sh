@@ -23,7 +23,7 @@ set -euo pipefail
 # User-configurable variables
 # -----------------------------
 : "${FHL_REPO_URL:="https://github.com/Fouchger/fouchger_homelab.git"}"
-: "${FHL_REPO_BRANCH:="dev"}"
+: "${FHL_REPO_BRANCH:="20250205"}"
 
 : "${FHL_INSTALL_BASE_DIR:="$HOME/apps"}"
 : "${FHL_INSTALL_DIR_NAME:="fouchger-homelab"}"
