@@ -6,6 +6,14 @@
 # - Logs/config/state/runs are created under the install directory
 set -euo pipefail
 
+clear
+echo "================================================================="
+echo "                                                                 "
+echo "            Fouchger Homelab                                     "
+echo "                                                                 "
+echo "================================================================="
+echo "                                                                 "
+
 REPO_URL="https://github.com/Fouchger/fouchger_homelab.git"
 APP_NAME="fouchger_homelab"
 BRANCH="20260206"

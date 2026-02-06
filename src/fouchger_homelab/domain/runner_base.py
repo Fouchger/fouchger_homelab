@@ -1,12 +1,12 @@
-"""
-runner_base.py
+"""runner_base.py
 Notes:
-- Runner interface lets us switch between direct execution and GitOps later.
+- Runner interface allows us to plug in alternative execution modes later.
+- For v1 we ship direct execution on the control plane.
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from .jobs import Job
+from .jobs import Job, JobResult
 
 
 class Runner(ABC):
@@ -15,6 +15,6 @@ class Runner(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def execute(self, job: Job) -> int:
-        """Execute a job and return an exit code."""
+    def execute(self, job: Job) -> JobResult:
+        """Execute a job and return a structured result."""
         raise NotImplementedError

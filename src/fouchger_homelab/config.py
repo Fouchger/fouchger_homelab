@@ -1,9 +1,9 @@
-"""
-config.py
+"""config.py
 Notes:
 - Simple YAML config with sensible defaults.
 - Supports single Proxmox node and clusters (multiple endpoints/nodes).
-- Runner mode can be "direct" now and "gitops" later.
+- For v1 we run directly on the control plane; the config model keeps room
+  to add alternative execution strategies later.
 """
 from __future__ import annotations
 
@@ -20,8 +20,7 @@ class ProxmoxConfig:
 
 @dataclass
 class RunnerConfig:
-    mode: str = "direct"  # "direct" or "gitops"
-    gitops_repo_path: str | None = None
+    mode: str = "direct"  # currently only "direct" is supported
 
 
 @dataclass
@@ -47,7 +46,6 @@ class AppConfig:
             ),
             runner=RunnerConfig(
                 mode=str(run.get("mode", "direct")),
-                gitops_repo_path=run.get("gitops_repo_path"),
             ),
         )
 
@@ -55,6 +53,6 @@ class AppConfig:
     def save(cfg: "AppConfig", path: Path) -> None:
         payload = {
             "proxmox": {"endpoints": cfg.proxmox.endpoints, "verify_tls": cfg.proxmox.verify_tls},
-            "runner": {"mode": cfg.runner.mode, "gitops_repo_path": cfg.runner.gitops_repo_path},
+            "runner": {"mode": cfg.runner.mode},
         }
         path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")

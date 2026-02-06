@@ -1,8 +1,6 @@
-"""
-history.py
+"""history.py
 Notes:
-- Run history will eventually be backed by SQLite (recommended).
-- For now we show the DataTable wiring and leave the store implementation as the next increment.
+- Run history is stored in SQLite and displayed via DataTable.
 """
 from __future__ import annotations
 
@@ -21,8 +19,16 @@ class HistoryScreen(Screen):
     def on_mount(self) -> None:
         table = self.query_one("#history_table", DataTable)
         table.add_columns("Run ID", "When", "Job", "Status", "Exit Code")
-        # Placeholder row
-        table.add_row("—", "—", "—", "—", "—")
+        self.action_refresh()
 
     def action_refresh(self) -> None:
-        self.app.notify("Refresh not implemented yet")
+        table = self.query_one("#history_table", DataTable)
+        table.clear()
+
+        records = self.app.history.latest(limit=200)  # type: ignore[attr-defined]
+        if not records:
+            table.add_row("—", "—", "—", "—", "—")
+            return
+
+        for r in records:
+            table.add_row(r.run_id[:8], r.created_at_utc, r.job_name, r.status, str(r.exit_code))
