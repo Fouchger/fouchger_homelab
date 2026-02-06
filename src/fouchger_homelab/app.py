@@ -37,6 +37,7 @@ from .ui.screens.proxmox import ProxmoxScreen
 from .ui.screens.ansible import AnsibleScreen
 from .ui.screens.terraform import TerraformScreen
 from .ui.screens.packer import PackerScreen
+from .ui.screens.dev_tools import DevToolsScreen
 
 class HomelabApp(App):
     CSS = """
@@ -53,8 +54,9 @@ class HomelabApp(App):
         ("3", "nav('ansible')", "Ansible"),
         ("4", "nav('terraform')", "Terraform"),
         ("5", "nav('packer')", "Packer"),
-        ("6", "nav('history')", "History"),
-        ("7", "nav('settings')", "Settings"),
+        ("6", "nav('devtools')", "Dev Tools"),
+        ("7", "nav('history')", "History"),
+        ("8", "nav('settings')", "Settings"),
     ]
 
     def __init__(self, paths: AppPaths, config: AppConfig) -> None:
@@ -78,6 +80,7 @@ class HomelabApp(App):
                     AnsibleScreen(id="ansible"),
                     TerraformScreen(id="terraform"),
                     PackerScreen(id="packer"),
+                    DevToolsScreen(id="devtools"),
                     HistoryScreen(id="history"),
                     SettingsScreen(id="settings"),
                     initial="home",
@@ -98,7 +101,7 @@ class HomelabApp(App):
         switcher = self.query_one("#switcher", ContentSwitcher)
         # Safety: only switch to known ids
         switcher.current = key if key in {
-            "home","setup","proxmox","ansible","terraform","packer","history","settings"
+            "home","setup","proxmox","ansible","terraform","packer","devtools","history","settings"
         } else "home"
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
@@ -112,6 +115,7 @@ class HomelabApp(App):
         yield SystemCommand("Go: Ansible", "Open Ansible section", lambda: self.action_nav("ansible"))
         yield SystemCommand("Go: Terraform", "Open Terraform section", lambda: self.action_nav("terraform"))
         yield SystemCommand("Go: Packer", "Open Packer section", lambda: self.action_nav("packer"))
+        yield SystemCommand("Go: Development Tools", "Open development tools", lambda: self.action_nav("devtools"))
         yield SystemCommand("Go: Run History", "Open run history", lambda: self.action_nav("history"))
         yield SystemCommand("Go: Settings", "Open settings", lambda: self.action_nav("settings"))
 

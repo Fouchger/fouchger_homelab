@@ -17,6 +17,7 @@ MENU = [
     ("Ansible", "ansible"),
     ("Terraform", "terraform"),
     ("Packer", "packer"),
+    ("Development Tools", "devtools"),
     ("Run History", "history"),
     ("Settings", "settings"),
 ]

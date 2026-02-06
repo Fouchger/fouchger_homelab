@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
                     ("ansible", "Ansible"),
                     ("terraform", "Terraform"),
                     ("packer", "Packer"),
+                    ("dev-auth", "Developer auth (git + gh)"),
                 ],
             },
         )
@@ -87,10 +88,11 @@ def create_app() -> FastAPI:
         - You can expand jobs to include args from forms later.
         """
         jobs: dict[str, Job] = {
-            "proxmox": Job(name="proxmox", command=["/usr/bin/true"]),
-            "ansible": Job(name="ansible", command=["/usr/bin/true"]),
-            "terraform": Job(name="terraform", command=["/usr/bin/true"]),
-            "packer": Job(name="packer", command=["/usr/bin/true"]),
+            "proxmox": Job(name="proxmox", argv=["/usr/bin/true"], cwd=paths.root),
+            "ansible": Job(name="ansible", argv=["/usr/bin/true"], cwd=paths.root),
+            "terraform": Job(name="terraform", argv=["/usr/bin/true"], cwd=paths.root),
+            "packer": Job(name="packer", argv=["/usr/bin/true"], cwd=paths.root),
+            "dev-auth": Job(name="dev-auth", argv=["bash", "scripts/core/dev-auth.sh", "all"], cwd=paths.root),
         }
         job = jobs.get(tool_key)
         if not job:
