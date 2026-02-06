@@ -1,0 +1,20 @@
+[project]
+name = "fouchger_homelab"
+version = "0.1.0"
+description = "Homelab control plane TUI for Proxmox, Ansible, Terraform, and Packer"
+requires-python = ">=3.11"
+dependencies = [
+  "textual>=0.60.0",
+  "rich>=13.0.0",
+  "pyyaml>=6.0.0",
+]
+
+[project.scripts]
+fouchger-homelab = "fouchger_homelab.app:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
