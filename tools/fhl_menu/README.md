@@ -25,6 +25,5 @@ Overrides (optional)
 
 install
 ```bash
-bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/dev/tools/fhl_menu/install.sh | bash'
-bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/dev/tools/fhl_menu/install.sh | bash'
+bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/20250205/tools/fhl_menu/install.sh | bash'
 ```
