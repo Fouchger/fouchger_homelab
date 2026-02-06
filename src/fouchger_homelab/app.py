@@ -42,7 +42,10 @@ from .ui.screens.dev_tools import DevToolsScreen
 class HomelabApp(App):
     CSS = """
     #root { height: 1fr; }
-    #nav { width: 30; border: heavy $background; }
+    #nav { width: 44; border: heavy $background; }
+    #nav #menu-root { height: 1fr; }
+    #nav #menu-main { width: 20; border-right: heavy $background; }
+    #nav #menu-sub { width: 22; }
     #main { width: 1fr; }
     #log { height: 12; border-top: heavy $background; }
     """
