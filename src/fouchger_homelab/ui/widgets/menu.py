@@ -31,6 +31,24 @@ class Menu(OptionList):
     def __init__(self, **kwargs) -> None:
         super().__init__(* [label for label, _ in MENU], **kwargs)
 
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        key = MENU[event.option_index][1]
+    def _emit_selected(self, option_index: int) -> None:
+        """Emit the Selected message for a given menu index.
+
+        Notes:
+        - In the TUI, users often expect navigation to happen as they move the
+          highlight (arrow keys) and not only on Enter.
+        - In the web UI, mouse clicks may trigger highlight changes without
+          raising OptionSelected depending on Textual version.
+        """
+
+        if option_index < 0 or option_index >= len(MENU):
+            return
+        key = MENU[option_index][1]
         self.post_message(self.Selected(key=key))
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        self._emit_selected(event.option_index)
+
+    def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
+        # Navigate on highlight movement as well.
+        self._emit_selected(event.option_index)
