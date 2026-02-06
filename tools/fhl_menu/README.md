@@ -23,7 +23,3 @@ Overrides (optional)
 - `FHL_APP_DISPLAY_NAME="Fouchger HomeLab"`
 - `FHL_APP_SLUG="fouchger-homelab"`
 
-install
-```bash
-bash -c 'curl -fsSL https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/20250205/install.sh | bash'
-```
