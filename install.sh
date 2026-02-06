@@ -8,7 +8,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/Fouchger/fouchger_homelab.git"
 APP_NAME="fouchger_homelab"
-BRANCH="main"
+BRANCH="20260206"
 BASE_DIR="${HOME}/app"
 INSTALL_DIR="${BASE_DIR}/${APP_NAME}"
 
