@@ -7,7 +7,6 @@ Notes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.screen import Screen
@@ -20,7 +19,6 @@ from ...domain.jobs import Job
 @dataclass(frozen=True)
 class PreflightCheck:
     """A simple preflight check that runs a fixed argv."""
-
     name: str
     argv: list[str]
 
@@ -38,20 +36,23 @@ class ToolScreen(Screen):
                 "Preflight checks confirm the control plane can execute the required tooling.",
                 id="subtitle",
             )
-            for check in self.CHECKS:
-                yield Button(check.name, id=f"check:{check.name}")
+            for idx, check in enumerate(self.CHECKS):
+                yield Button(check.name, id=f"check-{idx}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if not event.button.id:
-            return
-        if not event.button.id.startswith("check:"):
-            return
-
-        check_name = event.button.id.removeprefix("check:")
-        check = next((c for c in self.CHECKS if c.name == check_name), None)
-        if check is None:
+        button_id = event.button.id
+        if not button_id or not button_id.startswith("check-"):
             return
 
+        try:
+            idx = int(button_id.removeprefix("check-"))
+        except ValueError:
+            return
+
+        if idx < 0 or idx >= len(self.CHECKS):
+            return
+
+        check = self.CHECKS[idx]
         paths = self.app.paths  # type: ignore[attr-defined]
         job = Job(name=f"{self.TITLE} preflight: {check.name}", argv=check.argv, cwd=paths.root)
         self.app.submit_job(job)  # type: ignore[attr-defined]
