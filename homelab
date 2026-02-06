@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# fouchger_homelab runner
+# Notes:
+# - Default runs TUI.
+# - Use --web to run the web UI (uvicorn).
+# - Install step is controlled by HOMELAB_RUN=1 (default) to refresh the app.
+set -euo pipefail
+
+HOMELAB_RUN="${HOMELAB_RUN:-1}"
+REPO_URL="https://raw.githubusercontent.com/Fouchger/fouchger_homelab/refs/heads/20260206/install.sh"
+BRANCH="20260206"
+
+APP_DIR="$HOME/app/fouchger_homelab"
+VENV_BIN="$APP_DIR/.venv/bin"
+TUI_BIN="$VENV_BIN/fouchger-homelab"
+UVICORN_BIN="$VENV_BIN/uvicorn"
+
+MODE="tui"
+HOST="0.0.0.0"
+PORT="8080"
+
+usage() {
+  cat <<EOF
+Usage: homelab [--web] [--host HOST] [--port PORT] [--no-install]
+
+Options:
+  --web          Run the web UI instead of the TUI
+  --host HOST    Bind host for web UI (default: 0.0.0.0)
+  --port PORT    Bind port for web UI (default: 8080)
+  --no-install   Skip install/update step (sets HOMELAB_RUN=0 for this run)
+  -h, --help     Show help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --web)
+      MODE="web"
+      shift
+      ;;
+    --host)
+      HOST="${2:-}"
+      shift 2
+      ;;
+    --port)
+      PORT="${2:-}"
+      shift 2
+      ;;
+    --no-install)
+      HOMELAB_RUN="0"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+cd "$HOME"
+clear
+echo "================================================================="
+echo "                                                                 "
+echo "            Fouchger Homelab                                     "
+echo "                                                                 "
+echo "================================================================="
+echo "                                                                 "
+
+if [[ "$HOMELAB_RUN" == "1" ]]; then
+  echo "Delete app folder"
+  if [[ -d "$APP_DIR" ]]; then
+    rm -rf "$APP_DIR" || true
+  fi
+
+  echo "Clone $REPO_URL and run install"
+  curl -fsSL "$REPO_URL" | bash
+  # curl -fsSL "$REPO_URL" | bash -s -- -b "$BRANCH"
+else
+  echo "Skipping install/update step"
+fi
+
+if [[ ! -x "$TUI_BIN" ]]; then
+  echo "TUI binary not found or not executable: $TUI_BIN"
+  echo "Check the install completed successfully and the venv exists under: $APP_DIR/.venv"
+  exit 1
+fi
+
+if [[ "$MODE" == "web" ]]; then
+  if [[ ! -x "$UVICORN_BIN" ]]; then
+    echo "uvicorn not found or not executable: $UVICORN_BIN"
+    echo "Ensure web dependencies are installed in the venv."
+    exit 1
+  fi
+
+  echo "Starting web UI on http://$HOST:$PORT"
+  exec "$UVICORN_BIN" fouchger_homelab.web.server:app --host "$HOST" --port "$PORT"
+else
+  exec "$TUI_BIN"
+fi
