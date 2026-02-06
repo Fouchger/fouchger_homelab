@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Tools</title></head>
+  <body>
+    <h1>Tools</h1>
+    <p><a href="/">Home</a> | <a href="/history">Run History</a></p>
+
+    <ul>
+      {% for key, label in sections %}
+      <li>
+        <form method="post" action="/run/{{ key }}" style="display:inline;">
+          <button type="submit">{{ label }}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>

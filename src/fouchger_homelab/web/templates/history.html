@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Run History</title></head>
+  <body>
+    <h1>Run History</h1>
+    <p><a href="/">Home</a> | <a href="/tools">Tools</a></p>
+
+    {% if rows and rows|length > 0 %}
+      <table border="1" cellpadding="6" cellspacing="0">
+        <tr><th>When</th><th>Job</th><th>Exit</th><th>Run ID</th></tr>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.started_at if r.started_at is defined else "" }}</td>
+            <td>{{ r.name if r.name is defined else "" }}</td>
+            <td>{{ r.exit_code if r.exit_code is defined else "" }}</td>
+            <td>{{ r.run_id if r.run_id is defined else "" }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No history entries yet.</p>
+    {% endif %}
+  </body>
+</html>
