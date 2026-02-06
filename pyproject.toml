@@ -8,33 +8,6 @@ dependencies = [
   "rich>=14.3.2,<15",
   "pyyaml>=6.0.3,<7",
   "httpx>=0.28.1,<0.29",
-]
-
-[project.optional-dependencies]
-dev = [
-  "textual[dev]>=7.5.0,<8",
-]
-
-[project.scripts]
-fouchger-homelab = "fouchger_homelab.app:main"
-
-[build-system]
-requires = ["setuptools>=80.10.2,<81"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-where = ["src"][project]
-name = "fouchger_homelab"
-version = "0.1.0"
-description = "Homelab control plane TUI for Proxmox, Ansible, Terraform, and Packer"
-requires-python = ">=3.11"
-dependencies = [
-  "textual>=7.5.0,<8",
-  "rich>=14.3.2,<15",
-  "pyyaml>=6.0.3,<7",
-  "httpx>=0.28.1,<0.29",
-
-  # Web UI
   "fastapi>=0.110,<1",
   "uvicorn[standard]>=0.27,<1",
   "jinja2>=3.1,<4",
@@ -47,9 +20,6 @@ dev = [
 
 [project.scripts]
 fouchger-homelab = "fouchger_homelab.app:main"
-
-# Web entrypoint (served by uvicorn)
-# Run: uvicorn fouchger_homelab.web.server:app --host 0.0.0.0 --port 8080
 fouchger-homelab-web = "fouchger_homelab.web.server:app"
 
 [build-system]
@@ -58,4 +28,3 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
