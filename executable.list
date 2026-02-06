@@ -1,0 +1,20 @@
+# =============================================================================
+# File: executable.list
+# Project: Fouchger HomeLab
+# Purpose:
+#   Central list of repository files that should be made executable during
+#   installation (in addition to all *.sh scripts).
+#
+# Format:
+#   - One relative path per line (relative to the repository root)
+#   - Blank lines and lines starting with '#' are ignored
+#
+# Notes:
+#   - Keep this list stable and explicit. It gives you a single place to
+#     manage executable bits even if the folder structure changes.
+#   - If a path does not exist, the installer will warn and continue.
+# =============================================================================
+
+install.sh
+tools/repo_tools/branch_tool.sh
+tools/repo_tools/sync_github_repo.sh

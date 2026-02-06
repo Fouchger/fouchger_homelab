@@ -6,8 +6,9 @@
 #   Self-healing installer that:
 #     1) Installs minimum OS prerequisites (Debian/Ubuntu apt-based)
 #     2) Clones the GitHub repo (branch-aware)
-#     3) Creates a Python venv and installs runtime dependencies
-#     4) Launches the menu app
+#     3) Normalises executable permissions for scripts and tools
+#     4) Creates a Python venv and installs runtime dependencies
+#     5) Launches the menu app
 #
 # Developer notes:
 # - Designed for Ubuntu 22.04/24.04 and Debian 12.
@@ -157,6 +158,51 @@ install_python_deps() {
   python -m pip install -r "${req_file}" ${FHL_PIP_EXTRA_ARGS}
 }
 
+ensure_executables() {
+  # =============================================================================
+  # Purpose:
+  #   Normalise executable permissions after clone/pull.
+  #
+  # Behaviour:
+  #   1) Makes all *.sh files executable (common expectation in homelab repos)
+  #   2) Makes all files listed in executable.list executable
+  #
+  # Notes:
+  #   - Paths in executable.list must be relative to repo root.
+  #   - Missing paths are warned about but do not fail the install.
+  # =============================================================================
+  local repo_dir="$1"
+  local list_file="${repo_dir}/executable.list"
+
+  echo "Normalising executable permissions..."
+
+  # 1) All shell scripts
+  while IFS= read -r -d '' file_path; do
+    chmod +x "${file_path}" 2>/dev/null || true
+  done < <(find "${repo_dir}" -type f -name "*.sh" -print0)
+
+  # 2) Explicit list
+  if [[ -f "${list_file}" ]]; then
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      # Trim Windows CR if present
+      line="${line%$'\r'}"
+
+      # Ignore comments and blank lines
+      [[ -z "${line}" ]] && continue
+      [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+
+      local target_path="${repo_dir}/${line}"
+      if [[ -f "${target_path}" ]]; then
+        chmod +x "${target_path}" 2>/dev/null || true
+      else
+        echo "WARN: executable.list entry not found: ${line}"
+      fi
+    done < "${list_file}"
+  else
+    echo "INFO: No executable.list found at repo root (skipping explicit executable list)."
+  fi
+}
+
 launch_app() {
   local app_dir="$1"
   echo "Launching ${FHL_APP_DISPLAY_NAME}..."
@@ -191,6 +237,7 @@ mkdir -p "${FHL_INSTALL_BASE_DIR}"
 TARGET_DIR="${FHL_INSTALL_BASE_DIR}/${FHL_INSTALL_DIR_NAME}"
 
 clone_or_update_repo "${TARGET_DIR}"
+ensure_executables "${TARGET_DIR}"
 
 APP_DIR="${TARGET_DIR}/${FHL_APP_RELATIVE_DIR}"
 [[ -d "${APP_DIR}" ]] || die "App directory not found in repo at: ${APP_DIR}. Ensure you committed tools/fhl_menu."
